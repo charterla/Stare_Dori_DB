@@ -23,7 +23,8 @@ class Database():
               + f" name VARCHAR(16),"\
               + f" introduction VARCHAR(32),"\
               + f" rank SMALLINT,"\
-              + f" nowPoints INTEGER"\
+              + f" nowPoints INTEGER,"\
+              + f" lastUpdateTime BIGINT"\
               + f");"
         cursor.execute(table)
         table = f"CREATE TABLE IF NOT EXISTS \"{server_id}_{event_id}_event_points\" ("\
@@ -34,9 +35,18 @@ class Database():
               + f" CONSTRAINT to_player FOREIGN KEY (uid) REFERENCES \"{server_id}_{event_id}_event_players\"(uid)"\
               + f");"
         cursor.execute(table)
+        table = f"CREATE TABLE IF NOT EXISTS \"{server_id}_{event_id}_event_intervals\" ("\
+              + f" uid INTEGER,"\
+              + f" startTime BIGINT,"\
+              + f" endTime BIGINT,"\
+              + f" valueDelta INTEGER,"\
+              + f" PRIMARY KEY (uid, startTime),"\
+              + f" CONSTRAINT to_player FOREIGN KEY (uid) REFERENCES \"{server_id}_{event_id}_event_players\"(uid)"\
+              + f");"
+        cursor.execute(table)
         function = f"CREATE OR REPLACE FUNCTION \"{server_id}_{event_id}_event_newPoints\"() RETURNS TRIGGER AS $$\n"\
                  + f"BEGIN\n"\
-                 + f"    UPDATE \"{server_id}_{event_id}_event_players\" SET nowPoints = new.value\n"\
+                 + f"    UPDATE \"{server_id}_{event_id}_event_players\" SET nowPoints = new.value, lastUpdateTime = new.time\n"\
                  + f"        WHERE uid = new.uid and nowPoints < new.value;\n"\
                  + f"    RETURN NEW;\n"\
                  + f"END;\n"\
@@ -48,24 +58,42 @@ class Database():
                 + f"FOR EACH ROW "\
                 + f"EXECUTE PROCEDURE\"{server_id}_{event_id}_event_newPoints\"();"
         cursor.execute(trigger)
+        function = f"CREATE OR REPLACE FUNCTION \"{server_id}_{event_id}_event_newUpdate\"() RETURNS TRIGGER AS $$\n"\
+                 + f"BEGIN\n"\
+                 + f"    IF new.lastUpdateTime - old.lastUpdateTime >= 420000 THEN\n"\
+                 + f"        INSERT INTO \"{server_id}_{event_id}_event_intervals\" (uid, startTime, endTime, valueDelta) \n"\
+                 + f"            VALUES (new.uid, old.lastUpdateTime, new.lastUpdateTime, new.nowPoints - old.nowPoints);\n"\
+                 + f"    END IF;\n"\
+                 + f"    RETURN NEW;\n"\
+                 + f"END;\n"\
+                 + f"\n"\
+                 + f"$$ LANGUAGE plpgsql;"
+        cursor.execute(function)
+        trigger = f"CREATE OR REPLACE TRIGGER \"{server_id}_{event_id}_event_newUpdate\" "\
+                + f"AFTER UPDATE OF lastUpdateTime ON \"{server_id}_{event_id}_event_players\" "\
+                + f"FOR EACH ROW "\
+                + f"EXECUTE PROCEDURE\"{server_id}_{event_id}_event_newUpdate\"();"
+        cursor.execute(trigger)
         self.connection.commit()
         cursor.close()
 
-    def insectEventPlayers(self, event_id: int, players: list[dict], server_id: Optional[int] = 2):
+    def insertEventPlayers(self, event_id: int, players: list[dict], default_time: int, server_id: Optional[int] = 2):
+        if players == []: return
         cursor = self.connection.cursor()
         for player in players: 
             player["name"] = player["name"].replace("\'", "\'\'").replace("\"", "\"\"")
             player["introduction"] = player["introduction"].replace("\'", "\'\'").replace("\"", "\"\"")
-        players_value = [f"({player['uid']}, \'{player['name']}\', \'{player['introduction']}\', {player['rank']}, 0)"
+        players_value = [f"({player['uid']}, \'{player['name']}\', \'{player['introduction']}\', {player['rank']}, 0, {default_time})"
                          for player in players]
-        insect = f"INSERT INTO \"{server_id}_{event_id}_event_players\" (uid, name, introduction, rank, nowPoints) "\
+        insect = f"INSERT INTO \"{server_id}_{event_id}_event_players\" (uid, name, introduction, rank, nowPoints, lastUpdateTime) "\
                + f"VALUES {', '.join(players_value)} "\
                + f"ON CONFLICT (uid) DO UPDATE SET name = EXCLUDED.name, introduction = EXCLUDED.introduction, rank = EXCLUDED.rank;"
         cursor.execute(insect)
         self.connection.commit()
         cursor.close()
 
-    def insectEventPoints(self, event_id: int, points: list[dict], server_id: Optional[int] = 2):
+    def insertEventPoints(self, event_id: int, points: list[dict], server_id: Optional[int] = 2):
+        if points == []: return
         cursor = self.connection.cursor()
         points_value = [f"({point['time']}, {point['uid']}, {point['value']})"
                          for point in points]
@@ -115,3 +143,13 @@ class Database():
         points_at_time_before = cursor.fetchall()
         cursor.close()
         return points_at_time_before[0][0]
+    
+    def getEventPlayerIntervals(self, event_id: int, uid: int, server_id: Optional[int] = 2):
+        cursor = self.connection.cursor()
+        query = f"SELECT startTime, endTime, valueDelta FROM \"{server_id}_{event_id}_event_intervals\" "\
+              + f"WHERE uid = {uid} ORDER BY startTime DESC;"
+        cursor.execute(query)
+        self.connection.commit()
+        player_intervals = cursor.fetchall()
+        cursor.close()
+        return player_intervals

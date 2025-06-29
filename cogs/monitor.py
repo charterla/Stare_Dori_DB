@@ -21,19 +21,25 @@ class Monitor(commands.Cog):
     async def on_ready(self):
         print(f"{__name__} is on ready!")
 
+    # Synchronizing the recent event
     @tasks.loop(time = datetime.strptime('20:00', '%H:%M').time())
     async def checkRecentEvent(self):
-        check_recent_event = api.getRecentEvent()
+        try: check_recent_event = api.getRecentEvent()
+        except: return
         if check_recent_event["event_id"] != self.recent_event["event_id"]:
             self.recent_event = check_recent_event
             self.database.createTableForEvent(check_recent_event["event_id"])
 
+    # Synchronizing the data about event points
     @tasks.loop(minutes = 1)
     async def getRecentEventTop(self):
-        if datetime.now().timestamp() - self.last_updata_time > 90:
-            event_top = api.getEventtop(self.recent_event["event_id"], interval = 60000)
-        else: event_top = api.getEventtop(self.recent_event["event_id"])
-        self.last_updata_time = datetime.now().timestamp()
-        
-        self.database.insectEventPlayers(self.recent_event["event_id"], event_top["users"])
-        self.database.insectEventPoints(self.recent_event["event_id"], event_top["points"])
+        try:
+            if datetime.now().timestamp() - self.last_updata_time > 90:
+                event_top = api.getEventtop(self.recent_event["event_id"], interval = 60000)
+            else: event_top = api.getEventtop(self.recent_event["event_id"])
+            self.last_updata_time = datetime.now().timestamp()
+            
+            self.database.insertEventPlayers(self.recent_event["event_id"], 
+                                             event_top["users"], self.recent_event["start_at"])
+            self.database.insertEventPoints(self.recent_event["event_id"], event_top["points"])
+        except: return
