@@ -1,0 +1,4 @@
+.env
+venv/**
+start.service
+**/__pycache__/**
