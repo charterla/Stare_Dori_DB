@@ -77,79 +77,61 @@ class Database():
         self.connection.commit()
         cursor.close()
 
+    def insertData(self, insect):
+        cursor = self.connection.cursor()
+        cursor.execute(insect)
+        self.connection.commit()
+        cursor.close()
+
     def insertEventPlayers(self, event_id: int, players: list[dict], default_time: int, server_id: Optional[int] = 2):
         if players == []: return
-        cursor = self.connection.cursor()
         for player in players: 
             player["name"] = player["name"].replace("\'", "\'\'").replace("\"", "\"\"")
             player["introduction"] = player["introduction"].replace("\'", "\'\'").replace("\"", "\"\"")
         players_value = [f"({player['uid']}, \'{player['name']}\', \'{player['introduction']}\', {player['rank']}, 0, {default_time})"
                          for player in players]
-        insect = f"INSERT INTO \"{server_id}_{event_id}_event_players\" (uid, name, introduction, rank, nowPoints, lastUpdateTime) "\
-               + f"VALUES {', '.join(players_value)} "\
-               + f"ON CONFLICT (uid) DO UPDATE SET name = EXCLUDED.name, introduction = EXCLUDED.introduction, rank = EXCLUDED.rank;"
-        cursor.execute(insect)
-        self.connection.commit()
-        cursor.close()
+        self.insertData(
+            f"INSERT INTO \"{server_id}_{event_id}_event_players\" (uid, name, introduction, rank, nowPoints, lastUpdateTime) "\
+          + f"VALUES {', '.join(players_value)} "\
+          + f"ON CONFLICT (uid) DO UPDATE SET name = EXCLUDED.name, introduction = EXCLUDED.introduction, rank = EXCLUDED.rank;")
 
     def insertEventPoints(self, event_id: int, points: list[dict], server_id: Optional[int] = 2):
         if points == []: return
-        cursor = self.connection.cursor()
         points_value = [f"({point['time']}, {point['uid']}, {point['value']})"
                          for point in points]
-        insect = f"INSERT INTO \"{server_id}_{event_id}_event_points\" (time, uid, value) "\
-               + f"VALUES {', '.join(points_value)} "\
-               + f"ON CONFLICT (uid, value) DO NOTHING;"
-        cursor.execute(insect)
-        self.connection.commit()
+        self.insertData(
+            f"INSERT INTO \"{server_id}_{event_id}_event_points\" (time, uid, value) "\
+          + f"VALUES {', '.join(points_value)} "\
+          + f"ON CONFLICT (uid, value) DO NOTHING;")
+
+    def getData(self, query):
+        cursor = self.connection.cursor()
+        cursor.execute(query)
+        result = cursor.fetchall()
         cursor.close()
+        return result
 
     def getEventTopPlayers(self, event_id: int, ranking: Optional[int] = 10, server_id: Optional[int] = 2):
-        cursor = self.connection.cursor()
-        query = f"SELECT * FROM \"{server_id}_{event_id}_event_players\" ORDER BY nowPoints DESC LIMIT {ranking};"
-        cursor.execute(query)
-        self.connection.commit()
-        top_players = cursor.fetchall()
-        cursor.close()
-        return top_players
+        return self.getData(
+            f"SELECT * FROM \"{server_id}_{event_id}_event_players\" ORDER BY nowPoints DESC LIMIT {ranking};")
         
     def getEventPlayerPointsAtTimeBefore(self, event_id: int, uid: int, time_before: Optional[int] = 3600000, server_id: Optional[int] = 2):
-        cursor = self.connection.cursor()
-        query = f"SELECT value FROM \"{server_id}_{event_id}_event_points\" "\
-              + f"WHERE uid = {uid} and time < (ROUND(EXTRACT(EPOCH FROM now()) * 1000) - {time_before}) "\
-              + f"ORDER BY value DESC LIMIT 1;"
-        cursor.execute(query)
-        self.connection.commit()
-        points_at_time_before = cursor.fetchall()
-        cursor.close()
-        return points_at_time_before[0][0]
+        return self.getData(
+            f"SELECT value FROM \"{server_id}_{event_id}_event_points\" "\
+          + f"WHERE uid = {uid} and time < (ROUND(EXTRACT(EPOCH FROM now()) * 1000) - {time_before}) "\
+          + f"ORDER BY value DESC LIMIT 1;")[0][0]
     
     def getEventPlayerRecentPoints(self, event_id: int, uid: int, num: Optional[int] = 21, server_id: Optional[int] = 2):
-        cursor = self.connection.cursor()
-        query = f"SELECT time, value FROM \"{server_id}_{event_id}_event_points\" "\
-              + f"WHERE uid = {uid} ORDER BY time DESC LIMIT {num};"
-        cursor.execute(query)
-        self.connection.commit()
-        points_at_time_before = cursor.fetchall()
-        cursor.close()
-        return points_at_time_before
+        return self.getData(
+            f"SELECT time, value FROM \"{server_id}_{event_id}_event_points\" "\
+          + f"WHERE uid = {uid} ORDER BY time DESC LIMIT {num};")
     
-    def getEventPlayerPointsNumAtTimeBefore(self, event_id: int, uid: int, time_before: Optional[int] = 3600000, server_id: Optional[int] = 2):
-        cursor = self.connection.cursor()
-        query = f"SELECT COUNT(uid) FROM \"{server_id}_{event_id}_event_points\" "\
-              + f"WHERE uid = {uid} and time >= (ROUND(EXTRACT(EPOCH FROM now()) * 1000) - {time_before});"
-        cursor.execute(query)
-        self.connection.commit()
-        points_at_time_before = cursor.fetchall()
-        cursor.close()
-        return points_at_time_before[0][0]
+    def getEventPlayerPointsNumAtTimeAfter(self, event_id: int, uid: int, time_before: Optional[int] = 3600000, server_id: Optional[int] = 2):
+        return self.getData(
+            f"SELECT COUNT(uid) FROM \"{server_id}_{event_id}_event_points\" "\
+          + f"WHERE uid = {uid} and time >= (ROUND(EXTRACT(EPOCH FROM now()) * 1000) - {time_before});")[0][0]
     
     def getEventPlayerIntervals(self, event_id: int, uid: int, server_id: Optional[int] = 2):
-        cursor = self.connection.cursor()
-        query = f"SELECT startTime, endTime, valueDelta FROM \"{server_id}_{event_id}_event_intervals\" "\
-              + f"WHERE uid = {uid} ORDER BY startTime DESC;"
-        cursor.execute(query)
-        self.connection.commit()
-        player_intervals = cursor.fetchall()
-        cursor.close()
-        return player_intervals
+        return self.getData(
+            f"SELECT startTime, endTime, valueDelta FROM \"{server_id}_{event_id}_event_intervals\" "\
+          + f"WHERE uid = {uid} ORDER BY startTime DESC;")
