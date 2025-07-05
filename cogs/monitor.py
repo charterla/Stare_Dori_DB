@@ -15,14 +15,14 @@ class Monitor(commands.Cog):
         self.last_updata_time = 0
 
         self.checkRecentEvent.start()
-        self.getRecentEventTop.start()
+        # self.getRecentEventTop.start()
 
     @commands.Cog.listener()
     async def on_ready(self):
         print(f"{__name__} is on ready!")
 
     # Synchronizing the recent event
-    @tasks.loop(time = datetime.strptime('20:00', '%H:%M').time())
+    @tasks.loop(time = datetime.strptime('04:00', '%H:%M').time())
     async def checkRecentEvent(self):
         try: check_recent_event = api.getRecentEvent()
         except: return
@@ -31,7 +31,7 @@ class Monitor(commands.Cog):
             self.database.createTableForEvent(check_recent_event["event_id"])
 
     # Synchronizing the data about event points
-    @tasks.loop(minutes = 1)
+    '''@tasks.loop(minutes = 1)
     async def getRecentEventTop(self):
         try:
             if datetime.now().timestamp() - self.last_updata_time > 90:
@@ -42,4 +42,4 @@ class Monitor(commands.Cog):
             self.database.insertEventPlayers(self.recent_event["event_id"], 
                                              event_top["users"], self.recent_event["start_at"])
             self.database.insertEventPoints(self.recent_event["event_id"], event_top["points"])
-        except: return
+        except: return'''

@@ -1,5 +1,6 @@
 import requests, json
 from typing import Optional
+from datetime import datetime
 
 header = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3",
@@ -11,7 +12,9 @@ def getRecentEvent(server_id: Optional[int] = 2) -> dict:
     recent_events = json.loads(request.text)["events"]; result = {}
     for event_id, event in recent_events.items():
         if event["startAt"][server_id] is not None and \
-            (result == {} or event["startAt"][server_id] > result["start_at"]):
+            event["endAt"][server_id] is not None and \
+            (result == {} or int(event["startAt"][server_id]) < int(result["start_at"])) and \
+            int(event["endAt"][server_id]) > int(datetime.now().timestamp() * 1000):
             result = {
                 "event_id": event_id,
                 "event_name": event["eventName"][server_id],

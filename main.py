@@ -2,6 +2,7 @@ import discord
 from discord.ext import commands
 from helpers.db_pg import Database
 
+from cogs.info import Info
 from cogs.monitor import Monitor
 from cogs.check import Check
 class SDBot(commands.Bot):
@@ -10,6 +11,7 @@ class SDBot(commands.Bot):
         self.database = database
     
     async def setup_hook(self) -> None:
+        await self.add_cog(Info(self))
         monitor = Monitor(self, self.database)
         await self.add_cog(monitor)
         await self.add_cog(Check(self, self.database, monitor))
