@@ -116,10 +116,11 @@ class Database():
             f"SELECT * FROM \"{server_id}_{event_id}_event_players\" ORDER BY nowPoints DESC LIMIT {ranking};")
         
     def getEventPlayerPointsAtTimeBefore(self, event_id: int, uid: int, time_before: Optional[int] = 3600000, server_id: Optional[int] = 2):
-        return self.getData(
+        result = self.getData(
             f"SELECT value FROM \"{server_id}_{event_id}_event_points\" "\
           + f"WHERE uid = {uid} and time < (ROUND(EXTRACT(EPOCH FROM now()) * 1000) - {time_before}) "\
-          + f"ORDER BY value DESC LIMIT 1;")[0][0]
+          + f"ORDER BY value DESC LIMIT 1;")
+        return 0 if result == [] else result[0][0]
     
     def getEventPlayerRecentPoints(self, event_id: int, uid: int, num: Optional[int] = 21, server_id: Optional[int] = 2):
         return self.getData(

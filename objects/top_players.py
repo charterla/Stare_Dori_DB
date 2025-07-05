@@ -9,7 +9,7 @@ class TopPlayerInfo():
         self.introduction: str = top_player[2]
         self.rank: int = top_player[3]
         self.now_points: int = top_player[4]
-        self.last_update_time: int = top_player[5]
+        self.last_update_time: float = int(top_player[5]) / 1000
 
         # Waiting to be filled with details
         self.speed: int
@@ -92,8 +92,8 @@ def getTopPlayerDetail(rank: int, recent_event_id: int, database: Database) -> T
     
     # Counting the stop intervals of specified player
     stop_intervals = database.getEventPlayerIntervals(recent_event_id, top_player.uid)
-    if datetime.now().timestamp() - (top_player.last_update_time / 1000) > 420:
-        stop_intervals = ([top_player.last_update_time, \
+    if datetime.now().timestamp() - top_player.last_update_time > 420:
+        stop_intervals = ([int(top_player.last_update_time * 1000), \
                            int(datetime.now().timestamp() * 1000), 0], ) + stop_intervals
     stop_intervals = [{
             "start_time": datetime.fromtimestamp(stop_interval[0] / 1000).strftime("%m-%d %H:%M"),
