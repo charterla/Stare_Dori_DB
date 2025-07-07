@@ -69,7 +69,7 @@ def getTopPlayerDetail(rank: int, recent_event_id: int, database: Database) -> T
     top_player.recent_points_deltas = [{
             "change_time": datetime.fromtimestamp(recent_points[i][0] / 1000).strftime("%H:%M"), 
             "change_points": recent_points[i][1] - recent_points[i + 1][1]
-        } for i in range(20)
+        } for i in range(min(20, len(recent_points) - 1))
     ]
 
     # Counting the interval datails of specified player

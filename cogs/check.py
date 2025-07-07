@@ -33,6 +33,7 @@ class PlayerDetailView(ui.View):
 
     def update_embed(self):
         self.embed.description = f"-# **#{self.info.uid}** | Rank.{self.info.rank} | {self.info.introduction}\n"
+        self.embed.clear_fields()
         if self.current_page == 0:
             self.embed.description += f"### 📊 目前分數：{self.info.now_points}\n"
             self.embed.description += f"### 📈 目前時速：{self.info.speed} :number_{self.info.speed_rank}:\n"
