@@ -2,6 +2,9 @@ import requests, json, asyncio
 from typing import Optional
 from datetime import datetime
 
+import logging
+logger = logging.getLogger("SDBot")
+
 from objects.event import EventInfo
 
 HEADER = {
@@ -20,8 +23,9 @@ class API():
         while True:
             try: return json.loads(requests.get(url, headers = HEADER).text)
             except:
-                if time == 8: raise Exception("Bestdori API has not responsed.")
-                time += 1; await asyncio.sleep(1 << time); pass
+                if time == 8: raise Exception(f"Bestdori API has not responsed ({url}).")
+                time += 1; logger.warning(f"Bestdori API has not responsed ({url}). Retrying after {1 << time}s...")
+                await asyncio.sleep(1 << time); pass
 
     async def getRecentEventID(self, server_id: Optional[int] = 2) -> int:
         recent_events = await self.getData("https://bestdori.com/api/news/dynamic/recent.json")

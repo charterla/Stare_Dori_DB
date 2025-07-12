@@ -42,14 +42,14 @@ class PlayerDetailView(ui.View):
         if self.current_page == 1:
             self.embed.description += "### 近期20次變動：\n"
             self.embed.description += "\n".join([f"⏰`{recent_points_delta['change_time']}`  " \
-                                               + f"📈`{str(recent_points_delta['change_points']).rjust(5)}`" 
+                                               + f"📈`{str(recent_points_delta['change_points']).rjust(6)}`" 
                                                  for recent_points_delta in self.info.recent_points_deltas])
         if self.current_page == 2:
             self.embed.description += "### 近期統計：\n"
             self.embed.description += "\n".join([f"⏰`{interval_detail['time_interval_start']}~{interval_detail['time_interval_end']}`  " \
                                                + f"🔄`{str(interval_detail['change_num']).rjust(3)}`  "\
                                                + f"⏳`{interval_detail['average_change_interval']}`  "\
-                                               + f"📈`{str(interval_detail['average_change_points']).rjust(5)}`"
+                                               + f"📈`{str(interval_detail['average_change_points']).rjust(6)}`"
                                                  for interval_detail in self.info.interval_details])
         if self.current_page == 3:
             self.embed.description += "### 休息時間："
@@ -62,6 +62,17 @@ class PlayerDetailView(ui.View):
                                        for stop_interval in stop_intervals]),
                     inline = False
                 )
+        if self.current_page == 4:
+            self.embed.description += "### 排名變更記錄："
+            for date, rank_changes in self.info.rank_changes.items():
+                self.embed.add_field(
+                    name = f"📅 `{date}`",
+                    value = "\n".join([f"⏰ `{rank_change['update_time']}` " \
+                                     + (f":number_{rank_change['from_rank']}: ➔ " if rank_change['from_rank'] > 0 else ":asterisk: ➔ ") \
+                                     + (f":number_{rank_change['to_rank']}:" if rank_change['to_rank'] > 0 else ":asterisk:")
+                                       for rank_change in rank_changes]),
+                    inline = False
+                )
 
     @ui.button(label = "上一頁", style = ButtonStyle.primary)
     async def to_last_page(self, interaction: Interaction, button: Button):
@@ -72,7 +83,7 @@ class PlayerDetailView(ui.View):
     @ui.button(label = "下一頁", style = ButtonStyle.primary)
     async def to_next_page(self, interaction: Interaction, button: Button):
         await interaction.response.defer()
-        if self.current_page < 3: self.current_page += 1; self.update_embed()
+        if self.current_page < 4: self.current_page += 1; self.update_embed()
         await self.update(interaction)
 
 class Check(commands.Cog):
@@ -128,9 +139,7 @@ class Check(commands.Cog):
     @commands.guild_only()
     async def detail(self, interaction: Interaction, rank: app_commands.Range[int, 1, 10], verbose: Optional[bool] = False):
         # Getting recent event and Checking if event is start or not
-        recent_event_id = self.api.recent_event.event_id
-        recent_event_at_start = self.api.recent_event.start_at
-        if recent_event_at_start > datetime.now().timestamp():
+        if self.api.recent_event.start_at > datetime.now().timestamp():
             embed = embeds.Embed(
                 title = f"玩家細節 *[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]*",
                 description = "目前活動尚未開始",
@@ -142,5 +151,5 @@ class Check(commands.Cog):
             return
 
         # Generating the response to the user
-        response_view = PlayerDetailView(getTopPlayerDetail(rank - 1, recent_event_id, self.database), verbose)
+        response_view = PlayerDetailView(getTopPlayerDetail(rank - 1, self.api.recent_event, self.database), verbose)
         await response_view.send(interaction)

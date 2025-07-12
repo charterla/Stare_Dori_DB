@@ -2,6 +2,9 @@ from discord import Interaction, app_commands, ui
 from discord import embeds, Color, SelectOption
 from discord.ext import commands
 
+from helpers.db_pg import Database
+from objects.channel import Channel, getChannelStatus
+
 from typing import Optional
 
 C_INFO = {
@@ -45,7 +48,10 @@ C_INFO = {
                 "  - 📈為平均每次分數變動量",
                 "- 第四頁為指定名次玩家的活動內有記錄的休息時段 (停止變動7分鐘以上納入統計)",
                 "  - 📅為休息時段開始時間所在的日期，以此分欄",
-                "  - 每欄中每列資訊依次為開始時間、間隔時間量、結束時間"
+                "  - 每欄中每列資訊依次為開始時間、間隔時間量、結束時間",
+                "- 第五頁為指定名次玩家的排名變更記錄 (由活動第二天00:00後開始統計)",
+                "  - 📅為變更時間所在的日期，以此分欄",
+                "  - 每欄中每列資訊依次為變更時間、舊活動排名、新活動排名"
             ]
         }
     },
@@ -53,17 +59,21 @@ C_INFO = {
         "/change": {
             "description": "開啟或關閉 Top 10 變更提醒功能",
             "points": [
-                "- 使用相同指令即可切換開關狀態"
+                "- 使用相同指令即可切換開關狀態",
+                "- 只有具有\"管理員\"權限的成員才可使用"
             ]
         },
         "/cp": {
             "description": "開啟或關閉 Top 10 疑似消 CP 提醒功能",
             "points": [
-                "- 使用相同指令即可切換開關狀態"
+                "- 使用相同指令即可切換開關狀態",
+                "- 只有具有\"管理員\"權限的成員才可使用"
             ]
         }
     }
 }
+
+SERVER_NAME = ["日服", "國際服", "繁中服", "簡中服"]
 
 class CommandsDetailView(ui.View):
     def __init__(self, verbose: bool):
@@ -120,8 +130,9 @@ class CommandsDetailView(ui.View):
         await self.update(interaction)
 
 class Info(commands.Cog):
-    def __init__(self, bot: commands.Bot):
+    def __init__(self, bot: commands.Bot, database: Database):
         self.bot = bot
+        self.database = database
 
     @commands.Cog.listener()
     async def on_ready(self):
@@ -134,3 +145,23 @@ class Info(commands.Cog):
         # Generating the response to the user
         reponse_view = CommandsDetailView(verbose)
         await reponse_view.send(interaction)
+
+    @app_commands.command(name = "setting", description = "列出當前頻道的設定")
+    @app_commands.describe(verbose = "是否公開展示給所有人")
+    @commands.guild_only()
+    async def setting(self, interaction: Interaction, verbose: Optional[bool] = False):
+        # Getting channel status
+        channel_status = getChannelStatus(interaction.channel_id, self.database)
+
+        # Generating the response to the user
+        embed = embeds.Embed(
+            title = f"頻道`{interaction.channel.name}`的當前設定",
+            description = "",
+            color = Color.from_rgb(r = 51, g = 51, b = 255)
+        )
+        embed.description += f"#️⃣ 展示數據所屬的伺服器： {SERVER_NAME[channel_status.server_id]}\n"
+        embed.description += f"↕️ Top 10 變更提醒功能： {'✅' if channel_status.is_change_nofity else '❌'}\n"
+        embed.description += f"↕️ Top 10 疑似消 CP 提醒功能： {'✅' if channel_status.is_CP_nofity else '❌'}"
+        await interaction.response.send_message(
+            embed = embed, ephemeral = not verbose, delete_after = 300
+        )

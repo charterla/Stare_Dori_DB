@@ -5,8 +5,9 @@ from helpers.db_pg import Database
 from helpers.api import API
 
 from cogs.info import Info
-from cogs.monitor import Monitor
 from cogs.check import Check
+from cogs.notify import Notify
+from cogs.monitor import Monitor
 class SDBot(commands.Bot):
     def __init__(self, database: Database, api: API, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -14,9 +15,10 @@ class SDBot(commands.Bot):
         self.api = api
     
     async def setup_hook(self) -> None:
-        await self.add_cog(Info(self))
-        await self.add_cog(Monitor(self, self.database, self.api))
+        await self.add_cog(Info(self, self.database))
         await self.add_cog(Check(self, self.database, self.api))
+        notify_cog = Notify(self, self.database, self.api); await self.add_cog(notify_cog)
+        await self.add_cog(Monitor(self, self.database, self.api, notify_cog))
         self.synced = await self.tree.sync()
 
     async def on_ready(self) -> None:
