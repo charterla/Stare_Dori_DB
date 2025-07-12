@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 from helpers.db_pg import Database
+from objects.event import EventInfo
 
 class TopPlayerInfo():
     def __init__(self, top_player: list):
@@ -9,7 +10,7 @@ class TopPlayerInfo():
         self.introduction: str = top_player[2]
         self.rank: int = top_player[3]
         self.now_points: int = top_player[4]
-        self.last_update_time: int = top_player[5]
+        self.last_update_time: float = int(top_player[5]) / 1000
 
         # Waiting to be filled with details
         self.speed: int
@@ -20,6 +21,7 @@ class TopPlayerInfo():
         self.recent_points_deltas: list[dict] = []
         self.interval_details: list[dict] = []
         self.stop_intervals: dict[list[dict]] = {}
+        self.rank_changes: dict[list[dict]] = {}
 
 def getTopPlayersBriefList(recent_event_id: int, database: Database) -> list[TopPlayerInfo]:
     # Constructing the list of by raw data get from database
@@ -33,10 +35,13 @@ def getTopPlayersBriefList(recent_event_id: int, database: Database) -> list[Top
         # Assigning the rank of players
         top_player.now_rank = i + 1
 
-        # Geting recent interval to judge whether player keeped in top 10 or not
-        player_recent_interval = database.getEventPlayerIntervals(recent_event_id, top_player.uid)[0]
-        if player_recent_interval[2] > 130000 and (datetime.now().timestamp() - \
-            (player_recent_interval[2] / 1000)) <= 3600: speeds.append([i, -1])
+        # Getting recent up to top time to judge whether player keeped in top 10 or not
+        player_recent_up_to_top_times = database.getEventPlayerRankUpToTopTimes(recent_event_id, top_player.uid)
+        if player_recent_up_to_top_times == (): player_recent_up_to_top_time = 0
+        else: player_recent_up_to_top_time = player_recent_up_to_top_times[0][0] / 1000
+
+        # Initializing the speed list
+        if (datetime.now().timestamp() - player_recent_up_to_top_time) <= 3600: speeds.append([i, -1])
         else: speeds.append([i, top_player.now_points - database.\
             getEventPlayerPointsAtTimeBefore(recent_event_id, top_players[i].uid)])
             
@@ -53,9 +58,9 @@ def getTopPlayersBriefList(recent_event_id: int, database: Database) -> list[Top
 
     return top_players
 
-def getTopPlayerDetail(rank: int, recent_event_id: int, database: Database) -> TopPlayerInfo:
+def getTopPlayerDetail(rank: int, recent_event: EventInfo, database: Database) -> TopPlayerInfo:
     # Getting the list of top 10 players' brief and Locating the specified player
-    top_players = getTopPlayersBriefList(recent_event_id, database)
+    top_players = getTopPlayersBriefList(recent_event.event_id, database)
     top_player = top_players[rank]
 
     # Counting the points delta with the players upper and lower
@@ -64,19 +69,27 @@ def getTopPlayerDetail(rank: int, recent_event_id: int, database: Database) -> T
     if rank == 9: top_player.points_down_delta = 0
     else: top_player.points_down_delta = top_player.now_points - top_players[rank + 1].now_points
 
+    # Getting up to top time to judge whether player keeped in top 10 or not
+    player_up_to_top_times = [
+        player_up_to_top_time[0] for player_up_to_top_time
+        in database.getEventPlayerRankUpToTopTimes(recent_event.event_id, top_player.uid)
+    ]
+
     # Counting the recent points delta of specified player
-    recent_points = database.getEventPlayerRecentPoints(recent_event_id, top_player.uid)
-    top_player.recent_points_deltas = [{
+    recent_points = database.getEventPlayerRecentPoints(recent_event.event_id, top_player.uid)
+    recent_points_deltas = [{
             "change_time": datetime.fromtimestamp(recent_points[i][0] / 1000).strftime("%H:%M"), 
             "change_points": recent_points[i][1] - recent_points[i + 1][1]
-        } for i in range(min(20, len(recent_points) - 1))
+        } for i in range(min(40, len(recent_points) - 1)) 
+            if recent_points[i][0] not in player_up_to_top_times
     ]
+    top_player.recent_points_deltas = recent_points_deltas[:(min(20, len(recent_points_deltas)) + 1)]
 
     # Counting the interval datails of specified player
     eles = [1, 2, 12, 24]
     interval_data = [[
-            database.getEventPlayerPointsNumAtTimeAfter(recent_event_id, top_player.uid, 3600000 * ele),
-            database.getEventPlayerPointsAtTimeBefore(recent_event_id, top_player.uid, 3600000 * ele)
+            database.getEventPlayerPointsNumAtTimeAfter(recent_event.event_id, top_player.uid, 3600000 * ele),
+            database.getEventPlayerPointsAtTimeBefore(recent_event.event_id, top_player.uid, 3600000 * ele)
         ] for ele in eles
     ]
     top_player.interval_details = [{
@@ -85,15 +98,17 @@ def getTopPlayerDetail(rank: int, recent_event_id: int, database: Database) -> T
             "change_num": interval_data[i][0],
             "average_change_interval": "--:--" if interval_data[i][0] == 0 \
                 else datetime.fromtimestamp(3600 * ele / interval_data[i][0]).strftime("%M:%S"),
-            "average_change_points": "-----" if interval_data[i][0] == 0 \
+            "average_change_points": "------" if interval_data[i][0] == 0 \
                 else int((top_player.now_points - interval_data[i][1]) / interval_data[i][0])
-        } for i, ele in enumerate(eles)
+        } for i, ele in enumerate(eles) 
+            if (datetime.now() - timedelta(minutes = 60 * ele)).timestamp() > recent_event.start_at
+                and (datetime.now() - timedelta(minutes = 60 * ele)).timestamp() > player_up_to_top_times[0] / 1000
     ]
     
     # Counting the stop intervals of specified player
-    stop_intervals = database.getEventPlayerIntervals(recent_event_id, top_player.uid)
-    if datetime.now().timestamp() - (top_player.last_update_time / 1000) > 420:
-        stop_intervals = ([top_player.last_update_time, \
+    stop_intervals = database.getEventPlayerIntervals(recent_event.event_id, top_player.uid)
+    if datetime.now().timestamp() - top_player.last_update_time > 420:
+        stop_intervals = ([int(top_player.last_update_time * 1000), \
                            int(datetime.now().timestamp() * 1000), 0], ) + stop_intervals
     stop_intervals = [{
             "start_time": datetime.fromtimestamp(stop_interval[0] / 1000).strftime("%m-%d %H:%M"),
@@ -112,4 +127,23 @@ def getTopPlayerDetail(rank: int, recent_event_id: int, database: Database) -> T
                         + f"{str(int(stop_interval['time_delta'].seconds / 60) % 60).rjust(2)}m"
         })
         
+    # Getting the rank changes of specified player
+    lowest_timestamp = (datetime.fromtimestamp(recent_event.start_at) + timedelta(days = 1))\
+        .replace(hour = 0, minute = 0, second = 0).timestamp()
+    rank_changes = database.getEventPlayerRanks(recent_event.event_id, top_player.uid)
+    rank_changes = [{
+            "update_time": datetime.fromtimestamp(rank_change[0] / 1000).strftime("%m-%d %H:%M"),
+            "from_rank": (rank_change[1] if rank_change[1] <= 10 else -1),
+            "to_rank": (rank_change[2] if rank_change[2] <= 10 else -1)
+        } for rank_change in rank_changes if (rank_change[0] / 1000) >= lowest_timestamp
+    ]
+    for rank_change in rank_changes:
+        if rank_change["update_time"].split()[0] not in top_player.rank_changes:
+            top_player.rank_changes[rank_change["update_time"].split()[0]] = []
+        top_player.rank_changes[rank_change["update_time"].split()[0]].append({
+            "update_time": rank_change["update_time"].split()[-1],
+            "from_rank": rank_change["from_rank"],
+            "to_rank": rank_change["to_rank"]
+        })
+
     return top_player
