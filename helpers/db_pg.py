@@ -224,7 +224,7 @@ class Database():
     def getEventPlayerRankUpToTopTimes(self, event_id: int, uid: int, server_id: Optional[int] = 2):
         return self.getData(
             f"SELECT updateTime FROM \"{server_id}_{event_id}_event_rank\" "\
-          + f"WHERE uid = {uid} AND fromRank > 10 AND 0 <= toRank AND toRank <= 10 ORDER BY updateTime DESC;")
+          + f"WHERE uid = {uid} AND (fromRank < 0 OR fromRank > 10) AND 0 <= toRank AND toRank <= 10 ORDER BY updateTime DESC;")
     
     def getEventPlayersRankChangesAtTimeAfter(self, event_id: int, time_after: Optional[int] = 60000, server_id: Optional[int] = 2):
         return self.getData(

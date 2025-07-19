@@ -1,6 +1,11 @@
 from discord.ext import commands, tasks
 
 from datetime import datetime
+import asyncio
+
+import logging
+logger = logging.getLogger("SDBot")
+
 from helpers.db_pg import Database
 from helpers.api import API
 from cogs.notify import Notify
@@ -24,9 +29,17 @@ class Monitor(commands.Cog):
         print(f"{__name__} is on ready!")
 
     # Synchronizing the recent event
-    @tasks.loop(time = datetime.strptime('04:05', '%H:%M').time())
+    @tasks.loop(time = datetime.strptime('20:05', '%H:%M').time())
     async def checkRecentEvent(self):
-        check_recent_event_id = await self.api.getRecentEventID()
+        # Getting recent event id
+        check_recent_event_id = None
+        while check_recent_event_id == None:
+            try: check_recent_event_id = await self.api.getRecentEventID()
+            except: 
+                logger.warning(f"Fail to get recent event id at {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}.")
+                asyncio.sleep(3600); pass
+        
+        # Syncing the recent event data 
         if check_recent_event_id != self.api.recent_event.event_id:
             await self.api.updateRecentEvent(check_recent_event_id)
             self.database.createTableForEvent(check_recent_event_id)
@@ -34,12 +47,18 @@ class Monitor(commands.Cog):
     # Synchronizing the data about event points
     @tasks.loop(minutes = 1)
     async def getRecentEventTop(self):
-        event_top = await self.api.getEventTop(self.api.recent_event.event_id)
+        # Getting recent event top data
+        event_top = None
+        try: event_top = await self.api.getEventTop(self.api.recent_event.event_id)
+        except: pass
         if datetime.now().timestamp() - self.last_updata_time > 90:
-            event_top = await self.api.getEventTop(self.api.recent_event.event_id, interval = 60000)
+            try: event_top = await self.api.getEventTop(self.api.recent_event.event_id, interval = 60000)
+            except: pass
+        if event_top == None: logger.warning(f"Fail to get recent event top at {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}."); return
         justify_time = datetime.now().timestamp() - self.last_updata_time if self.last_updata_time > 0 else 0
         self.last_updata_time = datetime.now().timestamp()
-            
+        
+        # Updataing the database by the recent event top data
         self.database.insertEventPlayers(self.api.recent_event.event_id, 
                                              event_top["users"], int(self.api.recent_event.start_at * 1000))
         self.database.insertEventRanks(self.api.recent_event.event_id, 
