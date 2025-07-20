@@ -36,7 +36,7 @@ class Monitor(commands.Cog):
         while check_recent_event_id == None:
             try: check_recent_event_id = await self.api.getRecentEventID()
             except: 
-                logger.warning(f"Fail to get recent event id at {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}.")
+                logger.warning(f"Fail to get recent event id at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}.")
                 asyncio.sleep(3600); pass
         
         # Syncing the recent event data 
@@ -54,7 +54,7 @@ class Monitor(commands.Cog):
         if datetime.now().timestamp() - self.last_updata_time > 90:
             try: event_top = await self.api.getEventTop(self.api.recent_event.event_id, interval = 60000)
             except: pass
-        if event_top == None: logger.warning(f"Fail to get recent event top at {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}."); return
+        if event_top == None: logger.warning(f"Fail to get recent event top at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}."); return
         justify_time = datetime.now().timestamp() - self.last_updata_time if self.last_updata_time > 0 else 0
         self.last_updata_time = datetime.now().timestamp()
         

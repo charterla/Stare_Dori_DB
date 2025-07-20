@@ -35,14 +35,14 @@ class PlayerDetailView(ui.View):
         self.embed.description = f"-# **#{self.info.uid}** | Rank.{self.info.rank} | {self.info.introduction}\n"
         self.embed.clear_fields()
         if self.current_page == 0:
-            self.embed.description += f"### 📊 目前分數：{self.info.now_points}\n"
-            self.embed.description += f"### 📈 目前時速：{self.info.speed} :number_{self.info.speed_rank}:\n"
-            self.embed.description += f"### 🔼 與前一名分差：{self.info.points_up_delta}\n"
-            self.embed.description += f"### 🔽 與後一名分差：{self.info.points_down_delta}"
+            self.embed.description += f"### 📊 目前分數：{self.info.now_points:,}\n"
+            self.embed.description += f"### 📈 目前時速：{self.info.speed:,} :number_{self.info.speed_rank}:\n"
+            self.embed.description += f"### 🔼 與前一名分差：{self.info.points_up_delta:,}\n"
+            self.embed.description += f"### 🔽 與後一名分差：{self.info.points_down_delta:,}"
         if self.current_page == 1:
             self.embed.description += "### 近期20次變動：\n"
             self.embed.description += "\n".join([f"⏰`{recent_points_delta['change_time']}`  " \
-                                               + f"📈`{str(recent_points_delta['change_points']).rjust(6)}`" 
+                                               + f"📈`{(str(recent_points_delta['change_points'])).rjust(6)}`" 
                                                  for recent_points_delta in self.info.recent_points_deltas])
         if self.current_page == 2:
             self.embed.description += "### 近期統計：\n"
@@ -120,7 +120,7 @@ class Check(commands.Cog):
         # Generating the response to the user
         texts = [
             f"### **:number_{top_player.now_rank}:** **{top_player.name}** | "\
-          + f"📊 **{top_player.now_points}** | 📈 **{top_player.speed}** ({top_player.speed_rank})\n"\
+          + f"📊 **{top_player.now_points:,}** | 📈 **{top_player.speed:,}** ({top_player.speed_rank})\n"\
           + f"-# **#{top_player.uid}** | Rank.{top_player.rank} | {top_player.introduction}"
             for top_player in top_players
         ]
