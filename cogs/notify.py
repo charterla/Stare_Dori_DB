@@ -81,7 +81,7 @@ class Notify(commands.Cog):
 
     @app_commands.command(name = "change", description = "開啟或關閉 Top 10 變更提醒功能")
     @commands.guild_only()
-    @commands.has_permissions(administrator = True)
+    @commands.has_guild_permissions(administrator = True)
     async def change(self, interaction: Interaction):
         # Getting channel status
         channel_status = getChannelStatus(interaction.channel_id, self.database)
@@ -102,7 +102,7 @@ class Notify(commands.Cog):
 
     @app_commands.command(name = "cp", description = "開啟或關閉 Top 10 疑似消 CP 提醒功能")
     @commands.guild_only()
-    @commands.has_permissions(administrator = True)
+    @commands.has_guild_permissions(administrator = True)
     async def cp(self, interaction: Interaction):
         # Getting channel status
         channel_status = getChannelStatus(interaction.channel_id, self.database)
