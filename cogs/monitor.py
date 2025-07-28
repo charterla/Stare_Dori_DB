@@ -47,6 +47,9 @@ class Monitor(commands.Cog):
     # Synchronizing the data about event points
     @tasks.loop(minutes = 1)
     async def getRecentEventTop(self):
+        # Stopping update if event has not started yet
+        if self.api.recent_event.start_at > datetime.now().timestamp(): return
+        
         # Getting recent event top data
         event_top = None
         try: event_top = await self.api.getEventTop(self.api.recent_event.event_id)
