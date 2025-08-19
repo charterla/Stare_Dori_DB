@@ -10,7 +10,7 @@ EVENT_TYPE = {
 }
 
 class EventInfo():
-    def __init__(self, event_id: int, info: dict, server_id: Optional[int] = 2):
+    def __init__(self, server_id: int, event_id: int, info: dict):
         # Initializing object with data provided
         self.event_id = event_id
         self.event_name = info["eventName"][server_id]

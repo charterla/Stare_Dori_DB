@@ -31,12 +31,12 @@ class Database():
         self.connection.commit()
         cursor.close()
 
-    def createTableForEvent(self, event_id: int, server_id: Optional[int] = 2):
+    def createTableForEvent(self, server_id: int, event_id: int):
         cursor = self.connection.cursor()
         table = f"CREATE TABLE IF NOT EXISTS \"{server_id}_{event_id}_event_players\" ("\
               + f" uid BIGINT PRIMARY KEY,"\
-              + f" name VARCHAR(16),"\
-              + f" introduction VARCHAR(32),"\
+              + f" name VARCHAR(32),"\
+              + f" introduction VARCHAR(64),"\
               + f" rank SMALLINT,"\
               + f" nowPoints INTEGER,"\
               + f" lastUpdateTime BIGINT"\
@@ -106,7 +106,7 @@ class Database():
                  + f"            END IF;\n"\
                  + f"        END LOOP;\n"\
                  + f"    END LOOP;\n"\
-                 + f"    IF new.lastUpdateTime - old.lastUpdateTime >= 420000 THEN\n"\
+                 + f"    IF new.lastUpdateTime - old.lastUpdateTime >= 1200000 THEN\n"\
                  + f"        INSERT INTO \"{server_id}_{event_id}_event_intervals\" (uid, startTime, endTime, valueDelta) \n"\
                  + f"            VALUES (new.uid, old.lastUpdateTime, new.lastUpdateTime, new.nowPoints - old.nowPoints);\n"\
                  + f"    END IF;\n"\
@@ -134,7 +134,7 @@ class Database():
           + f"VALUES ({channel_id}, 2, false, false)"\
           + f"ON CONFLICT (id) DO NOTHING;")
 
-    def insertEventPlayers(self, event_id: int, players: list[dict], default_time: int, server_id: Optional[int] = 2):
+    def insertEventPlayers(self, server_id: int, event_id: int, players: list[dict], default_time: int):
         if players == []: return
         for player in players: 
             player["name"] = player["name"].replace("\'", "\'\'").replace("\"", "\"\"")
@@ -146,7 +146,7 @@ class Database():
           + f"VALUES {', '.join(players_value)} "\
           + f"ON CONFLICT (uid) DO UPDATE SET name = EXCLUDED.name, introduction = EXCLUDED.introduction, rank = EXCLUDED.rank;")
 
-    def insertEventPoints(self, event_id: int, points: list[dict], server_id: Optional[int] = 2):
+    def insertEventPoints(self, server_id: int, event_id: int, points: list[dict]):
         if points == []: return
         points_value = [f"({point['time']}, {point['uid']}, {point['value']})" for point in points]
         self.insertOrUpdateData(
@@ -154,7 +154,7 @@ class Database():
           + f"VALUES {', '.join(points_value)} "\
           + f"ON CONFLICT (uid, value) DO NOTHING;")
 
-    def insertEventRanks(self, event_id: int, players: list[dict], default_time: int, server_id: Optional[int] = 2):
+    def insertEventRanks(self, server_id: int, event_id: int, players: list[dict], default_time: int):
         if players == []: return
         ranks_value = [f"({player['uid']}, {default_time}, -1, -1)" for player in players]
         self.insertOrUpdateData(
@@ -174,59 +174,75 @@ class Database():
         else: return self.getData(
             f"SELECT * FROM channel_status WHERE id IN ({', '.join(map(str, channels_id))});")
     
-    def getChannelsToNotifyChange(self):
-        return self.getData( f"SELECT id FROM channel_status WHERE isChangeNotify = true;")
+    def getChannelsToNotifyChange(self, server_id: int):
+        return self.getData( f"SELECT id FROM channel_status WHERE isChangeNotify = true AND serverid = {server_id};")
     
-    def getChannelsToNotifyCP(self):
-        return self.getData( f"SELECT id FROM channel_status WHERE isCPNotify = true;")
+    def getChannelsToNotifyCP(self, server_id: int):
+        return self.getData( f"SELECT id FROM channel_status WHERE isCPNotify = true AND serverid = {server_id};")
 
-    def getEventPlayerName(self, event_id: int, uid: int, server_id: Optional[int] = 2):
+    def getEventPlayerName(self, server_id: int, event_id: int, uid: int):
         result = self.getData(f"SELECT name FROM \"{server_id}_{event_id}_event_players\" WHERE uid = {uid};")
         return None if result == () else result[0][0]
 
-    def getEventTopPlayers(self, event_id: int, ranking: Optional[int] = 10, server_id: Optional[int] = 2):
+    def getEventTopPlayers(self, server_id: int, event_id: int, ranking: Optional[int] = 10):
         return self.getData(
             f"SELECT * FROM \"{server_id}_{event_id}_event_players\" ORDER BY nowPoints DESC LIMIT {ranking};")
         
-    def getEventPlayerPointsAtTimeBefore(self, event_id: int, uid: int, time_before: Optional[int] = 3600000, server_id: Optional[int] = 2):
+    def getEventPlayerPointsAtDateBefore(self, server_id: int, event_id: int, uid: int, date_before: int):
+        result = self.getData(
+            f"SELECT value FROM \"{server_id}_{event_id}_event_points\" "\
+          + f"WHERE uid = {uid} AND time < {date_before} "\
+          + f"ORDER BY value DESC LIMIT 1;")
+        return 0 if result == () else result[0][0]
+        
+    def getEventPlayerPointsAtTimeBefore(self, server_id: int, event_id: int, uid: int, time_before: Optional[int] = 3600000):
         result = self.getData(
             f"SELECT value FROM \"{server_id}_{event_id}_event_points\" "\
           + f"WHERE uid = {uid} AND time < (ROUND(EXTRACT(EPOCH FROM now()) * 1000) - {time_before}) "\
           + f"ORDER BY value DESC LIMIT 1;")
         return 0 if result == () else result[0][0]
     
-    def getEventPlayerRecentPoints(self, event_id: int, uid: int, num: Optional[int] = 41, server_id: Optional[int] = 2):
+    def getEventPlayerRecentPoints(self, server_id: int, event_id: int, uid: int, num: Optional[int] = 41):
         return self.getData(
             f"SELECT time, value FROM \"{server_id}_{event_id}_event_points\" "\
           + f"WHERE uid = {uid} ORDER BY time DESC LIMIT {num};")
     
-    def getEventPlayerRecentPointsAtTimeAfter(self, event_id: int, uid: int, time_after: int, server_id: Optional[int] = 2):
+    def getEventPlayerRecentPointsAtTimeAfter(self, server_id: int, event_id: int, uid: int, time_after: int):
         return self.getData(
             f"SELECT time, value FROM \"{server_id}_{event_id}_event_points\" "\
           + f"WHERE uid = {uid} AND time >= (ROUND(EXTRACT(EPOCH FROM now()) * 1000) - {time_after}) ORDER BY time DESC;")
     
-    def getEventPlayerPointsNumAtTimeAfter(self, event_id: int, uid: int, time_after: Optional[int] = 3600000, server_id: Optional[int] = 2):
+    def getEventPlayerPointsNum(self, server_id: int, event_id: int, uid: int):
+        return self.getData(
+            f"SELECT COUNT(uid) FROM \"{server_id}_{event_id}_event_points\" WHERE uid = {uid};")[0][0]
+    
+    def getEventPlayerPointsNumPerHour(self, server_id: int, event_id: int, uid: int, start_at: int):
+        return self.getData(
+            f"SELECT ((time - {start_at}) / 3600000), COUNT(uid) FROM \"{server_id}_{event_id}_event_points\" "\
+          + f"WHERE uid = {uid} GROUP BY ((time - {start_at}) / 3600000) ORDER BY ((time - {start_at}) / 3600000);")
+
+    def getEventPlayerPointsNumAtTimeAfter(self, server_id: int, event_id: int, uid: int, time_after: Optional[int] = 3600000):
         return self.getData(
             f"SELECT COUNT(uid) FROM \"{server_id}_{event_id}_event_points\" "\
           + f"WHERE uid = {uid} AND time >= (ROUND(EXTRACT(EPOCH FROM now()) * 1000) - {time_after});")[0][0]
     
-    def getEventPlayerIntervals(self, event_id: int, uid: int, server_id: Optional[int] = 2):
+    def getEventPlayerIntervals(self, server_id: int, event_id: int, uid: int):
         return self.getData(
             f"SELECT startTime, endTime, valueDelta FROM \"{server_id}_{event_id}_event_intervals\" "\
           + f"WHERE uid = {uid} ORDER BY startTime DESC;")
     
-    def getEventPlayerRanks(self, event_id: int, uid: int, num: Optional[int] = None, server_id: Optional[int] = 2):
+    def getEventPlayerRanks(self, server_id: int, event_id: int, uid: int, num: Optional[int] = None):
         return self.getData(
             f"SELECT updateTime, fromRank, toRank FROM \"{server_id}_{event_id}_event_rank\" "\
           + f"WHERE uid = {uid} AND ((0 <= fromRank AND fromRank <= 10) OR (0 <= toRank AND toRank <= 10)) "\
           + f"ORDER BY updateTime DESC{'' if num == None else (' LIMIT ' + str(num))};")
     
-    def getEventPlayerRankUpToTopTimes(self, event_id: int, uid: int, server_id: Optional[int] = 2):
+    def getEventPlayerRankUpToTopTimes(self, server_id: int, event_id: int, uid: int):
         return self.getData(
             f"SELECT updateTime FROM \"{server_id}_{event_id}_event_rank\" "\
           + f"WHERE uid = {uid} AND (fromRank < 0 OR fromRank > 10) AND 0 <= toRank AND toRank <= 10 ORDER BY updateTime DESC;")
     
-    def getEventPlayersRankChangesAtTimeAfter(self, event_id: int, time_after: Optional[int] = 60000, server_id: Optional[int] = 2):
+    def getEventPlayersRankChangesAtTimeAfter(self, server_id: int, event_id: int, time_after: Optional[int] = 60000):
         return self.getData(
             f"SELECT uid, fromRank, toRank FROM \"{server_id}_{event_id}_event_rank\" "\
           + f"WHERE updateTime >= (ROUND(EXTRACT(EPOCH FROM now()) * 1000) - {time_after}) "\
