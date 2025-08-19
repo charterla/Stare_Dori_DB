@@ -88,7 +88,6 @@ C_INFO = {
         }
     }
 }
-
 SERVER_NAME = ["日服", "國際服", "繁中服", "簡中服"]
 
 class CommandsDetailView(ui.View):
