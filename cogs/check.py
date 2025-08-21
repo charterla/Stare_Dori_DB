@@ -104,6 +104,7 @@ class PlayerDailyView(ui.View):
                                         if points_change_times >= 0]
         points_change_times_in_hours = [points_change_times_in_hours[i:i + (int(len(points_change_times_in_hours) / 3))] 
                                         for i in range(0, len(points_change_times_in_hours), (int(len(points_change_times_in_hours) / 3)))]
+        points_change_times_in_hours[-1] += ["" for i in range(len(points_change_times_in_hours) % 3)]
         self.embed.add_field(
             name = f"本日有記錄的每小時場次數：",
             value = "\n".join(["　".join(points_change_times_in_hours_text)
