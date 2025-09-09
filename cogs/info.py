@@ -137,7 +137,7 @@ class CommandsDetailView(ui.View):
         SelectOption(label = "指令總覽", value = 0, emoji = "📑"),
         SelectOption(label = "基礎資訊", value = 1, emoji = "🔍"),
         SelectOption(label = "活動數據", value = 2, emoji = "📊"),
-        SelectOption(label = "變動警報", value = 3, emoji = "🔔"),
+        SelectOption(label = "頻道設定", value = 3, emoji = "🔔"),
     ])
     async def to_page(self, interaction: Interaction, select: ui.Select):
         await interaction.response.defer()
