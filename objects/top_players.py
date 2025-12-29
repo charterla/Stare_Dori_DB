@@ -6,8 +6,8 @@ class TopPlayerInfo():
     def __init__(self, top_player: list):
         # Initializing object with data provided
         self.uid: int = top_player[0]
-        self.name: str = top_player[1]
-        self.introduction: str = top_player[2]
+        self.name: str = top_player[1].replace("\n", "")
+        self.introduction: str = top_player[2].replace("\n", "")
         self.rank: int = top_player[3]
         self.now_points: int = top_player[4]
         self.last_update_time: float = int(top_player[5]) / 1000
