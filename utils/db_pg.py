@@ -357,19 +357,44 @@ class Database:
                                ["nowPoints DESC", "lastUpdateTime ASC"], 10)
         result = self.__doSelect(select); return list(result)
         
-    def selectEventPlayerPointAtTimeBefore(self, server_id: int, event_id: int, uid: int, 
-                                           time_before: Optional[int] = 3600) -> int:
-        select = self.__select(["event_points"], ["value"], 
-                               f"serverId = {server_id} AND eventID = {event_id} AND uid = {uid}"
-                             + f" AND time < ROUND(EXTRACT(EPOCH FROM now()) - {time_before})", ["value DESC"], 1)
-        result = self.__doSelect(select); return (0 if result == () else result[0][0])
+    def selectMonthlyTopPlayers(self, server_id: int, monthly_id: int) -> list:
+        select = self.__select(["monthly_player"], ["*"], f"serverId = {server_id} AND monthlyId = {monthly_id}",
+                               ["nowPoints DESC", "lastUpdateTime ASC"], 10)
+        result = self.__doSelect(select); return list(result)
         
-    def selectEventPlayerRecentUpTime(self, server_id: int, event_id: int, uid: int) -> int:
-        select = self.__select(["event_rank"], ["updateTime"], 
+    def selectEventPlayerPointsAtTime(self, server_id: int, event_id: int, uid: int, 
+                                      before: Optional[int] = None, after: Optional[int] = None, 
+                                      limit: Optional[int] = None, with_time: Optional[bool] = False) -> list[list[int]]:
+        conditions = f"serverId = {server_id} AND eventID = {event_id} AND uid = {uid}"
+        if before != None: conditions += f" AND time < ROUND(EXTRACT(EPOCH FROM now()) - {before})"
+        if after != None: conditions += f" AND time >= ROUND(EXTRACT(EPOCH FROM now()) - {after})"
+        select = self.__select(["event_points"], (["time", "value"] if with_time else ["value"]), 
+                               conditions, ["value DESC"], limit)
+        result = self.__doSelect(select); return ([[0]] if result == () else list(result))
+        
+    def selectEventPlayerPointsNumAtTime(self, server_id: int, event_id: int, uid: int, 
+                                         before: Optional[int] = None, after: Optional[int] = None) -> int:
+        conditions = f"serverId = {server_id} AND eventID = {event_id} AND uid = {uid}"
+        if before != None: conditions += f" AND time < ROUND(EXTRACT(EPOCH FROM now()) - {before})"
+        if after != None: conditions += f" AND time >= ROUND(EXTRACT(EPOCH FROM now()) - {after})"
+        select = self.__select(["event_points"], ["COUNT(uid)"], conditions)
+        result = self.__doSelect(select); return result[0][0]
+        
+    def selectEventPlayerUpsTime(self, server_id: int, event_id: int, uid: int, 
+                                 limit: Optional[int] = None) -> list[int]:
+        select = self.__select(["event_ranks"], ["updateTime"], 
                                f"serverId = {server_id} AND eventID = {event_id} AND uid = {uid}"
                              + f" AND (fromRank < 0 OR fromRank > 10) AND (0 <= toRank AND toRank <= 10)", 
-                               ["updateTime DESC"], 1)
-        result = self.__doSelect(select); return (0 if result == () else result[0][0])
+                               ["updateTime DESC"], limit)
+        result = self.__doSelect(select); return [value[0] for value in list(result)]
+        
+    def selectEventPlayerDownsTime(self, server_id: int, event_id: int, uid: int, 
+                                   limit: Optional[int] = None) -> list[int]:
+        select = self.__select(["event_ranks"], ["updateTime"], 
+                               f"serverId = {server_id} AND eventID = {event_id} AND uid = {uid}"
+                             + f" AND (0 < fromRank AND fromRank <= 10) AND (toRank < 0 OR toRank > 10)", 
+                               ["updateTime DESC"], limit)
+        result = self.__doSelect(select); return [value[0] for value in list(result)]
         
     def selectMonthlyTopPlayers(self, server_id: int, monthly_id: int) -> list:
         select = self.__select(["monthly_player"], ["*"], f"serverId = {server_id} AND monthlyId = {monthly_id}",
