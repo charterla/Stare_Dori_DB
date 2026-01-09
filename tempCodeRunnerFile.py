@@ -22,8 +22,8 @@ point_rank = 1
 # recent_event_top_detail = getEventTopPlayerDetail(database, server_id, recent_event, now_time, point_rank)
 # print(recent_event_top_detail.__dict__)
 
-recent_event_top_daily, day_split = getEventTopPlayerDaily(database, server_id, recent_event, now_time, point_rank)
-print(recent_event_top_daily.__dict__); print(day_split)
+recent_event_top_daily = getEventTopPlayerDaily(database, server_id, recent_event, now_time, point_rank)
+print(recent_event_top_daily.__dict__)
 
 # recent_monthly = getRecentMonthly(database, server_id)
 # recent_monthly_tops = getMonthlyTopPlayers(database, server_id, recent_monthly)

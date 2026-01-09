@@ -39,9 +39,10 @@ class Database:
         return command
     
     def __select(self, tables: list[str], columns: list[str], conditions: Optional[str] = "", 
-                 order_by: Optional[list[str]] = [], limit: Optional[int] = None) -> str:
+                 group_by: Optional[str] = "", order_by: Optional[list[str]] = [], limit: Optional[int] = None) -> str:
         command = f"SELECT {', '.join(columns)} FROM {', '.join(tables)}" \
                 + ("" if conditions == "" else f" WHERE {conditions}") \
+                + ("" if group_by == "" else f" GROUP BY {group_by}") \
                 + ("" if order_by == [] else f" ORDER BY {', '.join(order_by)}") \
                 + ("" if limit == None else f" LIMIT {str(limit)}") \
                 + ";"
@@ -164,7 +165,8 @@ class Database:
                                  "new.lastUpdateTime", "now.toRank", "checking.rank"]],
                                ["serverId", "eventId", "uid", "updateTime"], "UPDATE SET toRank = EXCLUDED.toRank")
         conditional = self.__conditional(["now.toRank <> checking.rank"], [[insert]])
-        range = self.__select(["event_ranks"], ["*"], "uid = checking.uid", ["updateTime DESC"], 1)[:-1]
+        range = self.__select(["event_ranks"], ["*"], "uid = checking.uid", 
+                              order_by = ["updateTime DESC"], limit = 1)[:-1]
         for_loop = self.__forLoop("now", range, [conditional])
         range = self.__select(["event_player"], ["uid", "RANK() OVER (ORDER BY nowPoints DESC) AS rank"], 
                               "serverId = new.serverId AND eventId = new.eventId")[:-1]
@@ -221,7 +223,8 @@ class Database:
     # %% inserting data
     def __insertValueProcess(self, values: list[list]) -> list[list[str]]:
         return [["\'" + var.replace("\'", "\'\'").replace("\"", "\"\"") + "\'" 
-                 if isinstance(var, str) else (str(var).lower() if isinstance(var, bool) else str(var))
+                 if isinstance(var, str) else (str(var).lower() if isinstance(var, bool) 
+                                               else ("NULL" if var == None else str(var)))
                  for var in value] for value in values]
         
     def __doInsert(self, insert: str) -> None:
@@ -276,7 +279,9 @@ class Database:
         values = self.__insertValueProcess([[server_id, event_id] + player + [0, default_time] for player in players])
         insert = self.__insert("event_player", ["serverId", "eventId", "uid", "name", "introduction", "rank", 
                                 "nowPoints", "lastUpdateTime"], values, ["serverId", "eventId", "uid"], 
-                               "UPDATE SET name = EXCLUDED.name, introduction = EXCLUDED.introduction, rank = EXCLUDED.rank;")
+                               "UPDATE SET name = COALESCE(EXCLUDED.name, event_player.name), "
+                             + "introduction = COALESCE(EXCLUDED.introduction, event_player.introduction), "
+                             + "rank = COALESCE(EXCLUDED.rank, event_player.rank);")
         self.__doInsert(insert); return
     
     def insertDefaultEventRanks(self, server_id: int, event_id: int, uids: list[int], default_time: int) -> None:
@@ -343,49 +348,67 @@ class Database:
     def selectRecentEventDetail(self, server_id: int) -> list:
         select = self.__select(["event_detail"], ["*"], 
                                f"serverId = {server_id} AND startAt <= ROUND(EXTRACT(EPOCH FROM now()) + 14400)",
-                               ["startAt DESC"], 1)
+                               order_by = ["startAt DESC"], limit = 1)
         result = self.__doSelect(select); return ([] if result == () else list(result)[0])
     
     def selectRecentMonthlyDetail(self, server_id: int) -> list:
         select = self.__select(["monthly_detail"], ["*"], 
                                f"serverId = {server_id} AND startAt <= ROUND(EXTRACT(EPOCH FROM now()) + 14400)",
-                               ["startAt DESC"], 1)
+                               order_by = ["startAt DESC"], limit = 1)
         result = self.__doSelect(select); return ([] if result == () else list(result)[0])
         
     def selectEventTopPlayers(self, server_id: int, event_id: int) -> list:
         select = self.__select(["event_player"], ["*"], f"serverId = {server_id} AND eventId = {event_id}",
-                               ["nowPoints DESC", "lastUpdateTime ASC"], 10)
+                               order_by = ["nowPoints DESC", "lastUpdateTime ASC"], limit = 10)
         result = self.__doSelect(select); return list(result)
         
     def selectMonthlyTopPlayers(self, server_id: int, monthly_id: int) -> list:
         select = self.__select(["monthly_player"], ["*"], f"serverId = {server_id} AND monthlyId = {monthly_id}",
-                               ["nowPoints DESC", "lastUpdateTime ASC"], 10)
+                               order_by = ["nowPoints DESC", "lastUpdateTime ASC"], limit = 10)
         result = self.__doSelect(select); return list(result)
         
     def selectEventPlayerPointsAtTime(self, server_id: int, event_id: int, uid: int, 
                                       before: Optional[int] = None, after: Optional[int] = None, 
                                       limit: Optional[int] = None, with_time: Optional[bool] = False) -> list[list[int]]:
         conditions = f"serverId = {server_id} AND eventID = {event_id} AND uid = {uid}"
-        if before != None: conditions += f" AND time < ROUND(EXTRACT(EPOCH FROM now()) - {before})"
-        if after != None: conditions += f" AND time >= ROUND(EXTRACT(EPOCH FROM now()) - {after})"
+        if before != None: conditions += f" AND time < {before}"
+        if after != None: conditions += f" AND time >= {after}"
         select = self.__select(["event_points"], (["time", "value"] if with_time else ["value"]), 
-                               conditions, ["value DESC"], limit)
+                               conditions, order_by = ["value DESC"], limit = limit)
         result = self.__doSelect(select); return ([[0]] if result == () else list(result))
         
     def selectEventPlayerPointsNumAtTime(self, server_id: int, event_id: int, uid: int, 
                                          before: Optional[int] = None, after: Optional[int] = None) -> int:
         conditions = f"serverId = {server_id} AND eventID = {event_id} AND uid = {uid}"
-        if before != None: conditions += f" AND time < ROUND(EXTRACT(EPOCH FROM now()) - {before})"
-        if after != None: conditions += f" AND time >= ROUND(EXTRACT(EPOCH FROM now()) - {after})"
+        if before != None: conditions += f" AND time < {before}"
+        if after != None: conditions += f" AND time >= {after}"
         select = self.__select(["event_points"], ["COUNT(uid)"], conditions)
         result = self.__doSelect(select); return result[0][0]
         
+    def selectEventPlayerPointsNumHourly(self, server_id: int, event_id: int, uid: int, start_at: int) -> list[int]:
+        select = self.__select(["event_points"], ["COUNT(uid)", f"((time - {start_at}) / 3600)"], 
+                               f"serverId = {server_id} AND eventID = {event_id} AND uid = {uid}", 
+                               group_by = f"((time - {start_at}) / 3600)", order_by = [f"((time - {start_at}) / 3600)"])
+        response = self.__doSelect(select); result = [0 for _ in range(response[-1][1] + 2)]
+        for num, index in list(response): result[index] = num
+        return list(result)
+        
+    def selectEventPlayerIntervals(self, server_id: int, event_id: int, uid: int) -> list[list[int]]:
+        select = self.__select(["event_intervals"], ["startTime", "endTime", "valueDelta"], 
+                               f"serverId = {server_id} AND eventID = {event_id} AND uid = {uid}")
+        result = self.__doSelect(select); return ([] if result == () else list(result))
+        
+    def selectEventPlayerRanks(self, server_id: int, event_id: int, uid: int) -> list[list[int]]:
+        select = self.__select(["event_ranks"], ["updateTime", "fromRank", "toRank"], 
+                               f"serverId = {server_id} AND eventID = {event_id} AND uid = {uid}")
+        result = self.__doSelect(select); return ([] if result == () else list(result))
+    
     def selectEventPlayerUpsTime(self, server_id: int, event_id: int, uid: int, 
                                  limit: Optional[int] = None) -> list[int]:
         select = self.__select(["event_ranks"], ["updateTime"], 
                                f"serverId = {server_id} AND eventID = {event_id} AND uid = {uid}"
                              + f" AND (fromRank < 0 OR fromRank > 10) AND (0 <= toRank AND toRank <= 10)", 
-                               ["updateTime DESC"], limit)
+                               order_by = ["updateTime DESC"], limit = limit)
         result = self.__doSelect(select); return [value[0] for value in list(result)]
         
     def selectEventPlayerDownsTime(self, server_id: int, event_id: int, uid: int, 
@@ -393,10 +416,5 @@ class Database:
         select = self.__select(["event_ranks"], ["updateTime"], 
                                f"serverId = {server_id} AND eventID = {event_id} AND uid = {uid}"
                              + f" AND (0 < fromRank AND fromRank <= 10) AND (toRank < 0 OR toRank > 10)", 
-                               ["updateTime DESC"], limit)
+                               order_by = ["updateTime DESC"], limit = limit)
         result = self.__doSelect(select); return [value[0] for value in list(result)]
-        
-    def selectMonthlyTopPlayers(self, server_id: int, monthly_id: int) -> list:
-        select = self.__select(["monthly_player"], ["*"], f"serverId = {server_id} AND monthlyId = {monthly_id}",
-                               ["nowPoints DESC"], 10)
-        result = self.__doSelect(select); return list(result)
