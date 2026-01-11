@@ -19,6 +19,7 @@ EVENT_LINK = [
 ]
 
 SERVER_NAME = ["日服", "國際服", "繁中服", "簡中服"]
+OBJECT_TYPE = ["操作用戶", "當前頻道"]
 
 class EventInfo:
     def __init__(self, data: list):

@@ -1,8 +1,6 @@
 import pg8000
 from typing import Optional
-
 from logging import Logger
-from utils.logger import getLogger
 
 class Database:
     def __init__(self, host: str, name: str, user: str, password: str, port: int, logger: Optional[Logger] = None):

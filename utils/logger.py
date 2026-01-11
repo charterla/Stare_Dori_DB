@@ -1,7 +1,7 @@
 import logging, json
-from pathlib import Path
 from datetime import datetime
 from typing import Optional
+from pathlib import Path
 
 from discord.utils import stream_supports_colour, _ColourFormatter
 

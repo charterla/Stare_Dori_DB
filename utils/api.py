@@ -4,8 +4,8 @@ from pathlib import Path
 from environs import Env
 from logging import Logger
 
-from utils.db_pg import Database
 from utils.logger import getLogger, logExceptionToFile
+from utils.db_pg import Database
 from objs.activity import EVENT_TYPE, EventInfo, getRecentEvent, MonthlyInfo, getRecentMonthly
 
 PACKAGE_URL = [
@@ -65,7 +65,7 @@ class API:
             "X-ClientVersion": self.version, "X-Signature": self.uuid}
         try: return self.parser.parse(requests.get(url, headers = headers, timeout = 2).content)
         except: 
-            try: response = requests.get(url, headers = headers, timeout = 4)
+            try: response = requests.get(url, headers = headers, timeout = 8)
             except: logExceptionToFile(self.log_file_path, "Fail to get response from Game", 
                                        traceback.format_exc()); return None
             try: return self.parser.parse(response.content)
