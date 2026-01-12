@@ -13,8 +13,8 @@ class EventPlayer:
         self.event_id: int = data[1]
         self.uid: int = data[2]
         
-        self.name: str = data[3] if data[3] != None else ""
-        self.introduction: str = data[4] if data[4] != None else ""
+        self.name: str = data[3].replace("\n", "") if data[3] != None else ""
+        self.introduction: str = data[4].replace("\n", "") if data[4] != None else ""
         self.rank: int = data[5]
         
         self.last_update_time: int = data[6]
@@ -88,12 +88,13 @@ def getEventTopPlayerDetail(database: Database, server_id: int, event: EventInfo
     for time in [3600, 7200, 43200, 86400]:
         after_time = request_time - time
         if after_time <= event.start_at and after_time <= player.recent_up_time: break
-        point_changes = database.selectEventPlayerPointsNumAtTime(server_id, event.id, player.uid, 
-                                                                  after = after_time) - 1
-        point_before = database.selectEventPlayerPointsAtTime(server_id, event.id, player.uid, 
-                                                              before = after_time, limit = 1)[0][0]
-        player_detail_data[-1].append((after_time, point_changes, round(time / point_changes), 
-                                       round((player.point - point_before) / point_changes)))
+        point_changes = database.selectEventPlayerPointsNumAtTime(
+            server_id, event.id, player.uid, after = after_time) - 1
+        point_before = database.selectEventPlayerPointsAtTime(
+            server_id, event.id, player.uid, before = after_time, limit = 1)[0][0]
+        if point_changes <= 0: player_detail_data[-1].append((after_time, 0, 0, 0))
+        else: player_detail_data[-1].append((after_time, point_changes, round(time / point_changes), 
+                                             round((player.point - point_before) / point_changes)))
     
     # Creating objects from data
     return EventPlayerDetail(player, player_detail_data)
@@ -111,9 +112,9 @@ class EventPlayerDaily(EventPlayer):
         self.stop_intervals: list[list[tuple[tuple[int, int], int]]] = data[4]
         self.rank_changes: list[list[tuple[int, tuple[int, int]]]] = data[5]
         
-def getEventTopPlayerDaily(database: Database, server_id: int, event: EventInfo, request_time: int, 
-                           point_rank: int, timezone: Optional[ZoneInfo] = ZoneInfo("Asia/Hong_Kong")) \
-    -> tuple[EventPlayerDetail, list[int]]:
+def getEventTopPlayerDaily(database: Database, server_id: int, event: EventInfo, 
+                           request_time: int, timezone: ZoneInfo, point_rank: int) \
+    -> tuple[EventPlayerDaily, list[int]]:
     # Collecting top players info and Counting time splits day by day
     player: EventPlayer = getEventTopPlayers(database, server_id, event, request_time)[point_rank - 1]
     day_split: list[int] = [event.start_at]
@@ -143,6 +144,7 @@ def getEventTopPlayerDaily(database: Database, server_id: int, event: EventInfo,
     player_daily_data += [[0 for _ in range(len(day_split) - 1)], [[] for _ in range(len(day_split) - 1)]]; index = 0
     for to in to_stop:
         while True:
+            while to[0] > day_split[index + 1]: index += 1
             sub_to: tuple[int, int] = (max(to[0], day_split[index]), min(to[1], day_split[index + 1]))
             player_daily_data[-2][index] += sub_to[1] - sub_to[0]
             player_daily_data[-1][index].append((sub_to, sub_to[1] - sub_to[0]))
@@ -154,11 +156,12 @@ def getEventTopPlayerDaily(database: Database, server_id: int, event: EventInfo,
     player_daily_data += [[[] for _ in range(len(day_split) - 1)]]; index = 0
     for to in to_rank_changes:
         while to[0] > day_split[index + 1]: index += 1
-        player_daily_data[-1][index].append((to[0], ((-1 if (to[1] < 0 or to[1] > 10) else to[1]), 
-                                                     (-1 if (to[2] < 0 or to[2] > 10) else to[2]))))
+        if (to[1] < 1 or to[1] > 11) and (to[2] < 1 or to[2] > 11): continue
+        player_daily_data[-1][index].append((to[0], ((-1 if (to[1] < 1 or to[1] > 10) else to[1]), 
+                                                     (-1 if (to[2] < 1 or to[2] > 10) else to[2]))))
         
     # Creating objects from data
-    return EventPlayerDetail(player, player_daily_data), day_split
+    return EventPlayerDaily(player, player_daily_data), day_split
 
 class MonthlyPlayer:
     def __init__(self, data: list):

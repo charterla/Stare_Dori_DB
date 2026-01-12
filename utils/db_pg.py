@@ -174,8 +174,8 @@ class Database:
                                [["new.serverId", "new.eventId", "new.uid", 
                                  "old.lastUpdateTime", "new.lastUpdateTime", "new.nowPoints - old.nowPoints"]], 
                                ["serverId", "eventId", "uid", "startTime"], "NOTHING")
-        conditional = self.__conditional(["new.lastUpdateTime - old.lastUpdateTime >= 1200000"], [[insert]])
-        commands.append(insert)
+        conditional = self.__conditional(["new.lastUpdateTime - old.lastUpdateTime >= 1200"], [[insert]])
+        commands.append(conditional)
         trigger_function = self.__createTriggerFunction("event_newUpdate", commands, 
                                                         {"checking": "RECORD", "now": "RECORD"})
         trigger = self.__createTrigger("event_newUpdate", "AFTER", "UPDATE OF nowPoints", 
@@ -393,20 +393,21 @@ class Database:
         
     def selectEventPlayerIntervals(self, server_id: int, event_id: int, uid: int) -> list[list[int]]:
         select = self.__select(["event_intervals"], ["startTime", "endTime", "valueDelta"], 
-                               f"serverId = {server_id} AND eventID = {event_id} AND uid = {uid}")
+                               f"serverId = {server_id} AND eventID = {event_id} AND uid = {uid}", 
+                               order_by = ["startTime ASC"])
         result = self.__doSelect(select); return ([] if result == () else list(result))
         
     def selectEventPlayerRanks(self, server_id: int, event_id: int, uid: int) -> list[list[int]]:
         select = self.__select(["event_ranks"], ["updateTime", "fromRank", "toRank"], 
-                               f"serverId = {server_id} AND eventID = {event_id} AND uid = {uid}")
+                               f"serverId = {server_id} AND eventID = {event_id} AND uid = {uid}", 
+                               order_by = ["updateTime ASC"])
         result = self.__doSelect(select); return ([] if result == () else list(result))
     
     def selectEventPlayerUpsTime(self, server_id: int, event_id: int, uid: int, 
                                  limit: Optional[int] = None) -> list[int]:
         select = self.__select(["event_ranks"], ["updateTime"], 
                                f"serverId = {server_id} AND eventID = {event_id} AND uid = {uid}"
-                             + f" AND (fromRank < 0 OR fromRank > 10) AND (0 <= toRank AND toRank <= 10)", 
-                               order_by = ["updateTime DESC"], limit = limit)
+                             + f" AND (fromRank < 0 OR fromRank > 10) AND (0 <= toRank AND toRank <= 10)", limit = limit)
         result = self.__doSelect(select); return [value[0] for value in list(result)]
         
     def selectEventPlayerDownsTime(self, server_id: int, event_id: int, uid: int, 

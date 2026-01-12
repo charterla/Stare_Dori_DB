@@ -90,46 +90,15 @@ C_INFO = {
                 "  - 子資訊依次是`UID`，`Rank`和`留言`"
             ]
         }
-    },
-    "🔔提醒設定": {
-        "/uid": {
-            "description": "設定操作用戶於特定伺服器追蹤的 UID",
-            "points": [
-                "- 預設設定之遊戲伺服服為操作用戶指定之遊戲伺服器"
-            ]
-        },
-        "/target": {
-            "description": "設定目標分用於目標分接近提醒",
-            "points": [
-                "- 預設設定之遊戲伺服服為操作用戶指定之遊戲伺服器",
-                "- 將以操作用戶所追蹤的 UID 於設定之遊戲伺服服 Top 10 中尋找對應"
-            ]
-        },
-        "/change": {
-            "description": "開啟或關閉 Top 10 變更提醒功能",
-            "points": [
-                "- 使用相同指令即可切換開關狀態", 
-                "- 提示訊息發出於操作用戶指定之遊戲伺服器當前活動 Top 10 發生變更時", 
-                "- 提示訊息將發出在操作用戶與本機器人之私訊中"
-            ]
-        },
-        "/cp": {
-            "description": "開啟或關閉 Top 10 疑似消 CP 提醒功能",
-            "points": [
-                "- 使用相同指令即可切換開關狀態", 
-                "- 提示訊息發出於操作用戶指定之遊戲伺服器當前活動 Top 10 疑似消 CP 時", 
-                "- 提示訊息將發出在操作用戶與本機器人之私訊中"
-            ]
-        }
     }
 }
 
 class CommandsDetailView(ui.View):
     def __init__(self, verbose: bool):
         super().__init__()
-        self.verbose = verbose
+        self.verbose: bool = verbose
 
-        self.embeds = [
+        self.embeds: list[embeds.Embed] = [
             embeds.Embed(
                 title = "**Stare Dori** 指令列表 - 📑指令總覽",
                 description = "-# 列出指令列表中的分類和分類下的指令簡介",
@@ -149,14 +118,10 @@ class CommandsDetailView(ui.View):
                     value = f"-# {command_detail['description']}\n" + "\n".join(command_detail["points"]),
                     inline = False
                 )
-            self.embeds[0].add_field(
-                name = fleid_name, 
-                value = "\n".join(commands_brief), 
-                inline = False
-            )
+            self.embeds[0].add_field(name = fleid_name, value = "\n".join(commands_brief), inline = False)
             self.embeds.append(new_embed)
 
-        self.current_page = 0
+        self.current_page: int = 0
 
     async def send(self, interaction: Interaction):
         await interaction.response.send_message(
@@ -171,7 +136,6 @@ class CommandsDetailView(ui.View):
         SelectOption(label = "指令總覽", value = 0, emoji = "📑"),
         SelectOption(label = list(C_INFO.keys())[0][1:], value = 1, emoji = list(C_INFO.keys())[0][0]),
         SelectOption(label = list(C_INFO.keys())[1][1:], value = 2, emoji = list(C_INFO.keys())[1][0]),
-        SelectOption(label = list(C_INFO.keys())[2][1:], value = 3, emoji = list(C_INFO.keys())[2][0]),
     ])
     async def to_page(self, interaction: Interaction, select: ui.Select):
         await interaction.response.defer()
@@ -180,8 +144,8 @@ class CommandsDetailView(ui.View):
 
 class Basic(commands.Cog):
     def __init__(self, bot: commands.Bot, database: Database):
-        self.bot = bot
-        self.database = database
+        self.bot: commands.Bot = bot
+        self.database: Database = database
         self.logger: Logger = getLogger(__name__)
 
     @commands.Cog.listener()
@@ -208,23 +172,11 @@ class Basic(commands.Cog):
         user_status: User = getUser(self.database, interaction.user.id)
 
         # Generating the response to the user
-        embed = embeds.Embed(
+        embed: embeds.Embed = embeds.Embed(
             title = f"用戶`{interaction.user.name}`的當前設定",
-            description = "",
+            description = f"⏺️ 展示數據所屬的伺服器： {SERVER_NAME[user_status.server_id]}",
             color = Color.from_rgb(r = 51, g = 51, b = 255)
-        )
-        embed.description += f"⏺️ 展示數據所屬的伺服器： {SERVER_NAME[user_status.server_id]}\n"
-        uid_list_str: str = "\n- ".join([f"`{uid} ({SERVER_NAME[i]})`" for i, uid 
-                                         in enumerate(user_status.uid) if uid != None])
-        embed.description += f"#️⃣ 追蹤的 UID ： {'無' if uid_list_str == '' else uid_list_str}\n"
-        target_list_str: str = "\n- ".join([f"`{target[0]} [{target[1]}] ({SERVER_NAME[i]})`" for i, target 
-                                            in enumerate(user_status.recent_target_point) if target != None])
-        embed.description += f"⏯️ 最近設置的目標分接近提醒： {'無' if target_list_str == '' else target_list_str}\n"
-        embed.description += f"↕️ Top 10 變更提醒功能： {'✅' if user_status.is_change_nofity else '❌'}\n"
-        embed.description += f"⏏️ Top 10 疑似消 CP 提醒功能： {'✅' if user_status.is_CP_nofity else '❌'}"
-        await interaction.response.send_message(
-            embed = embed, ephemeral = not verbose, delete_after = 300
-        )
+        ); await interaction.response.send_message(embed = embed, ephemeral = not verbose, delete_after = 300)
 
     @app_commands.command(name = "channel", description = list(C_INFO.values())[0]["/channel"]["description"])
     @app_commands.describe(verbose = "是否公開展示給所有人")
@@ -241,15 +193,11 @@ class Basic(commands.Cog):
         channel_status: Channel = getChannel(self.database, interaction.channel.id)
 
         # Generating the response to the user
-        embed = embeds.Embed(
+        embed: embeds.Embed = embeds.Embed(
             title = f"頻道`{interaction.channel.name}`的當前設定",
-            description = "",
+            description = f"⏺️ 展示數據所屬的伺服器： {SERVER_NAME[channel_status.server_id]}",
             color = Color.from_rgb(r = 51, g = 51, b = 255)
-        )
-        embed.description += f"⏺️ 展示數據所屬的伺服器： {SERVER_NAME[channel_status.server_id]}"
-        await interaction.response.send_message(
-            embed = embed, ephemeral = not verbose, delete_after = 300
-        )
+        ); await interaction.response.send_message(embed = embed, ephemeral = not verbose, delete_after = 300)
 
     @app_commands.command(name = "server", description = list(C_INFO.values())[0]["/server"]["description"])
     @app_commands.describe(server = "改變後的指定遊戲伺服器")
@@ -294,5 +242,5 @@ class Basic(commands.Cog):
                 result = f"頻道`{interaction.channel.name}`指定遊戲伺服器已改為 \"{server.name}\""
         
         # Generating the response to the user
-        embed = embeds.Embed(title = result, color = Color.from_rgb(r = 51, g = 51, b = 255))
+        embed: embeds.Embed = embeds.Embed(title = result, color = Color.from_rgb(r = 51, g = 51, b = 255))
         await interaction.response.send_message(embed = embed, ephemeral = True, delete_after = 300)

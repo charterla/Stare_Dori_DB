@@ -16,6 +16,7 @@ from utils.logger import getLogger
 from objs.activity import SERVER_NAME
 
 from cogs.basic import Basic
+from cogs.check import Check
 class SDBot(commands.Bot):
     def __init__(self, env: Env, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -40,6 +41,7 @@ class SDBot(commands.Bot):
     
     async def setup_hook(self) -> None:
         await self.add_cog(Basic(self, self.database))
+        await self.add_cog(Check(self, self.database))
         self.synced = await self.tree.sync()
         return
 
