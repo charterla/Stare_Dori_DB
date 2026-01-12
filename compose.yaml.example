@@ -1,0 +1,42 @@
+services:
+  pgdb:
+    image: postgres:15.13
+    container_name: local_pgdb
+    restart: always
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    volumes:
+      - ../PGDB:/var/lib/postgresql/data
+    networks:
+      - backend
+  pgadmin:
+    image: elestio/pgadmin
+    container_name: pgadmin4
+    restart: always
+    ports:
+      - "20080:80"
+    environment:
+      PGADMIN_DEFAULT_EMAIL: 
+      PGADMIN_DEFAULT_PASSWORD: 
+    networks:
+      - frontend
+      - backend
+  bot:
+    build:
+      context: .
+      dockerfile: ./Dockerfile_SD_DB
+    volumes:
+      - .:/home/user/SD_DB/Stare_Dori_DB
+    networks:
+      - frontend
+      - backend
+
+networks:    
+  frontend:
+    driver: bridge
+  backend:
+    driver: bridge
+    internal: true
+    external: false

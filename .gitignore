@@ -1,4 +1,10 @@
 .env
-venv/**
+compose.yaml
+
+.venv/**
+.log/**
+
 start.service
 **/__pycache__/**
+
+utils/parser.py
