@@ -208,7 +208,7 @@ class Check(commands.Cog):
             await interaction.response.send_message("目前沒有相關活動的資訊", 
                                                     ephemeral = True, delete_after = 300); return
         if recent_event.start_at > datetime.now().timestamp():
-            embed: embeds.Embed = embeds.Embed(title = f"前十名總覽", description = "當前活動尚未開始",
+            embed: embeds.Embed = embeds.Embed(title = f"{recent_event.name} 前十名總覽", description = "當前活動尚未開始",
                 color = Color.from_rgb(r = 51, g = 51, b = 255)
             ).set_footer(text \
                 = f"數據獲取時間：{datetime.fromtimestamp(request_time, tz = timezone).strftime('%Y-%m-%d %H:%M:%S')}"
@@ -224,7 +224,7 @@ class Check(commands.Cog):
           + f"📊 **{top_player.point:,}** | 📈 **{top_player.speed:,}** ({top_player.speed_rank})\n" \
           + f"-# **#{top_player.uid}** | Rank.{top_player.rank} | {top_player.introduction}"
             for top_player in top_players]
-        embed: embeds.Embed = embeds.Embed(title = f"前十名總覽", description = "\n".join(texts), 
+        embed: embeds.Embed = embeds.Embed(title = f"{recent_event.name} 前十名總覽", description = "\n".join(texts), 
             color = Color.from_rgb(r = 51, g = 51, b = 255)
         ).set_footer(text \
             = f"數據獲取時間：{datetime.fromtimestamp(request_time, tz = timezone).strftime('%Y-%m-%d %H:%M:%S')}"
@@ -332,7 +332,7 @@ class Check(commands.Cog):
             await interaction.response.send_message("目前沒有相關月榜活動的資訊", 
                                                     ephemeral = True, delete_after = 300); return
         if recent_monthly.start_at > datetime.now().timestamp():
-            embed: embeds.Embed = embeds.Embed(title = f"月榜前十名總覽", description = "當前月榜尚未開始",
+            embed: embeds.Embed = embeds.Embed(title = f"{recent_monthly.name} 前十名總覽", description = "當前月榜尚未開始",
                 color = Color.from_rgb(r = 51, g = 51, b = 255)
             ).set_footer(text \
                 = f"數據獲取時間：{datetime.fromtimestamp(request_time, tz = timezone).strftime('%Y-%m-%d %H:%M:%S')}"
@@ -347,7 +347,7 @@ class Check(commands.Cog):
             f"### **:number_{top_player.point_rank}:** **{top_player.name}** | 📊 **{top_player.point:,}**\n" \
           + f"-# **#{top_player.uid}** | Rank.{top_player.rank} | {top_player.introduction}"
             for top_player in top_players]
-        embed: embeds.Embed = embeds.Embed(title = f"月榜前十名總覽", description = "\n".join(texts), 
+        embed: embeds.Embed = embeds.Embed(title = f"{recent_monthly.name} 前十名總覽", description = "\n".join(texts), 
             color = Color.from_rgb(r = 51, g = 51, b = 255)
         ).set_footer(text \
             = f"數據獲取時間：{datetime.fromtimestamp(request_time, tz = timezone).strftime('%Y-%m-%d %H:%M:%S')}"
