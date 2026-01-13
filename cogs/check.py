@@ -41,9 +41,9 @@ class EventPlayerDetailView(ui.View):
             f"⏰`{datetime.fromtimestamp(range_detail[0], tz = self.timezone).strftime('%H:%M')}" \
           + f"~{datetime.fromtimestamp(self.request_time, tz = self.timezone).strftime('%H:%M')}` " \
           + f"🔄`{str(range_detail[1]).rjust(3)}` " \
-          + f"⏳`" + ('--:--' if range_detail[2] == 0 else 
-                (int(timedelta(seconds = range_detail[2]).seconds // 60) \
-               + ":" + timedelta(seconds = range_detail[2]).seconds % 60)) + "` " \
+          + f"⏳`" + ('--:--' if range_detail[2] == 0 else (
+                str(int(timedelta(seconds = range_detail[2]).seconds // 60)).zfill(2) \
+              + ":" + str(timedelta(seconds = range_detail[2]).seconds % 60).zfill(2))) + "` " \
           + f"📈`{'------' if range_detail[3] == 0 else str(range_detail[3]).rjust(6)}`"
             for range_detail in self.info.recent_ranges_detail])
         self.update_embed()

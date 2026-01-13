@@ -84,9 +84,9 @@ if __name__ == "__main__":
         return
         
     # Defining error handler
-    @bot.tree.error
-    async def on_command_error(interaction: discord.Interaction, error: commands.CommandError) -> None:
-        await interaction.response.send_message("您無法使用該指令", ephemeral = True, delete_after = 300); return
+    # @bot.tree.error
+    # async def on_command_error(interaction: discord.Interaction, error: commands.CommandError) -> None:
+    #     await interaction.response.send_message("您無法使用該指令", ephemeral = True, delete_after = 300); return
     
     # Running the Discord Bot
     bot.run(token = env.str("TOKEN"))
