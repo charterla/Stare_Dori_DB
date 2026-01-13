@@ -345,13 +345,13 @@ class Database:
     
     def selectRecentEventDetail(self, server_id: int) -> list:
         select = self.__select(["event_detail"], ["*"], 
-                               f"serverId = {server_id} AND startAt <= ROUND(EXTRACT(EPOCH FROM now()) + 14400)",
+                               f"serverId = {server_id} AND startAt >= ROUND(EXTRACT(EPOCH FROM now()) - 14400)",
                                order_by = ["startAt DESC"], limit = 1)
         result = self.__doSelect(select); return ([] if result == () else list(result)[0])
     
     def selectRecentMonthlyDetail(self, server_id: int) -> list:
         select = self.__select(["monthly_detail"], ["*"], 
-                               f"serverId = {server_id} AND startAt <= ROUND(EXTRACT(EPOCH FROM now()) + 14400)",
+                               f"serverId = {server_id} AND startAt >= ROUND(EXTRACT(EPOCH FROM now()) - 14400)",
                                order_by = ["startAt DESC"], limit = 1)
         result = self.__doSelect(select); return ([] if result == () else list(result)[0])
         
