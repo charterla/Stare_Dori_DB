@@ -136,8 +136,11 @@ class EventPlayerDailyView(ui.View):
              + (f":number_{to_rank}:" if to_rank > 0 else ":asterisk:")
                 for time, (from_rank, to_rank) in rank_changes]; rank_changes_text = rank_changes_text[::-1]
             self.rank_changes.append([])
-            for i in range(0, min(144, len(rank_changes_text)), 16):
-                self.rank_changes[-1].append("\n".join(rank_changes_text[i:min(i + 16, len(rank_changes_text))]))
+            if len(rank_changes_text) > 0: 
+                self.rank_changes[-1].append("\n".join(rank_changes_text[0:min(15, len(rank_changes_text))]))
+                for i in range(15, min(143, len(rank_changes_text)), 16):
+                    self.rank_changes[-1].append("\n".join(rank_changes_text[i:min(i + 16, len(rank_changes_text))]))
+            self.rank_changes[-1] += ["" for _ in range((3 - (len(self.rank_changes[-1]) % 3)) % 3)]
         self.update_embed()
 
         self.children[0].options = [

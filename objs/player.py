@@ -132,7 +132,8 @@ def getEventTopPlayerDaily(database: Database, server_id: int, event: EventInfo,
     player_daily_data.append([now_point - last_point for now_point, last_point 
                               in zip(to_point_delta[1:], to_point_delta[:-1])])
     to_point_change_times: list[int] = database.selectEventPlayerPointsNumHourly(
-        server_id, event.id, player.uid, event.start_at); player_daily_data += [[], []]
+        server_id, event.id, player.uid, event.start_at, 
+        int((min(request_time, event.end_at) - event.start_at) // 3600) + 1); player_daily_data += [[], []]
     for now_split, last_split in zip(day_split[1:], day_split[:-1]):
         num = min(int(math.ceil((now_split - last_split) / 3600)), len(to_point_change_times))
         player_daily_data[-2].append(sum(to_point_change_times[:num]))
@@ -141,6 +142,7 @@ def getEventTopPlayerDaily(database: Database, server_id: int, event: EventInfo,
         
     # Collecting and Processing stop data from database
     to_stop: list[list[int]] = database.selectEventPlayerIntervals(server_id, event.id, player.uid)
+    if request_time - player.last_update_time >= 1200: to_stop.append([player.last_update_time, request_time, 0])
     player_daily_data += [[0 for _ in range(len(day_split) - 1)], [[] for _ in range(len(day_split) - 1)]]; index = 0
     for to in to_stop:
         while True:

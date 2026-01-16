@@ -383,11 +383,12 @@ class Database:
         select = self.__select(["event_points"], ["COUNT(uid)"], conditions)
         result = self.__doSelect(select); return result[0][0]
         
-    def selectEventPlayerPointsNumHourly(self, server_id: int, event_id: int, uid: int, start_at: int) -> list[int]:
+    def selectEventPlayerPointsNumHourly(self, server_id: int, event_id: int, uid: int, 
+                                         start_at: int, len: int) -> list[int]:
         select = self.__select(["event_points"], ["COUNT(uid)", f"((time - {start_at}) / 3600)"], 
                                f"serverId = {server_id} AND eventID = {event_id} AND uid = {uid}", 
                                group_by = f"((time - {start_at}) / 3600)", order_by = [f"((time - {start_at}) / 3600)"])
-        response = self.__doSelect(select); result = [0 for _ in range(response[-1][1] + 2)]
+        response = self.__doSelect(select); result = [0 for _ in range(len)]
         for num, index in list(response): result[index] = num
         return list(result)
         
