@@ -1,7 +1,6 @@
 import math
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
-from typing import Optional
 
 from utils.db_pg import Database
 from objs.activity import EventInfo, MonthlyInfo
@@ -142,7 +141,8 @@ def getEventTopPlayerDaily(database: Database, server_id: int, event: EventInfo,
         
     # Collecting and Processing stop data from database
     to_stop: list[list[int]] = database.selectEventPlayerIntervals(server_id, event.id, player.uid)
-    if request_time - player.last_update_time >= 1200: to_stop.append([player.last_update_time, request_time, 0])
+    if min(request_time, event.end_at) - player.last_update_time >= 1200: to_stop.append(
+        [player.last_update_time, min(request_time, event.end_at), 0])
     player_daily_data += [[0 for _ in range(len(day_split) - 1)], [[] for _ in range(len(day_split) - 1)]]; index = 0
     for to in to_stop:
         while True:

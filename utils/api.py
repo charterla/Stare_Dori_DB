@@ -15,6 +15,12 @@ PACKAGE_URL = [
     "https://itunes.apple.com/cn/lookup?bundleId=com.bilibili.star"
 ]
 
+HEADER_BASE = {
+    "User-Agent": "UnityPlayer/2021.3.45f2 (UnityWebRequest/1.0, libcurl/8.5.0-DEV)", 
+    "X-Unity-Version": "2021.3.45f2", "X-ClientPlatform": "Android", "Accept-Encoding": "deflate, gzip", 
+    "Content-Type": "application/octet-stream", "Accept": "application/octet-stream"
+}
+
 class API:
     def __init__(self, server_id: int, env_file_path: Path, log_base_path: Path):
         self.logger: Logger = getLogger(f"{__name__}.{server_id}")
@@ -37,20 +43,12 @@ class API:
             kiv = env.str("KIV").split(",")[self.server_id].split(":")
             self.parser = None if kiv == ["-"] else Parser(kiv[0], kiv[1])
         except: self.parser = None
-        self.version = None; self.__updateGameVersion()
+        self.version = None; self.__checkGameVersion()
         if self.parser != None: self.unavailability: int = 0; self.__checkStatusOfGame()
         
         asyncio.run(self.__monitor())
     
     # %% Getting and Parsing data from http response
-    def __updateGameVersion(self) -> None:
-        try:
-            response = requests.get(PACKAGE_URL[self.server_id], timeout = 2)
-            self.version = json.loads(response.text)["results"][0]["version"]
-        except: logExceptionToFile(self.log_file_path, 
-                                   "Fail to update game version", 
-                                   traceback.format_exc()); return
-    
     def __getDataFromBestdori(self, url: str) -> dict:
         try: response = requests.get(url, timeout = 4)
         except: logExceptionToFile(self.log_file_path, "Fail to get response from Bestdori", 
@@ -60,9 +58,7 @@ class API:
                                    traceback.format_exc(), {"response": response}); return None
         
     def __getDataFromGame(self, url: str) -> list:
-        headers = {
-            "Content-Type": "application/octet-stream", "Accept": "application/octet-stream",
-            "X-ClientVersion": self.version, "X-Signature": self.uuid}
+        headers = headers = HEADER_BASE | {"X-ClientVersion": self.version, "X-Signature": self.uuid}
         try: return self.parser.parse(requests.get(url, headers = headers, timeout = 2).content)
         except: 
             try: response = requests.get(url, headers = headers, timeout = 8)
@@ -173,23 +169,21 @@ class API:
         return False
     
     # %% Monitoring data regularly
-    def __checkStatusOfGame(self) -> None: 
-        headers = {"Content-Type": "application/octet-stream", "Accept": "application/octet-stream",
-                   "X-ClientVersion": self.version}
+    def __checkGameVersion(self) -> None:
         try:
-            try: status = self.parser.parse(requests.get(self.url_base + "application", 
-                                                         headers = headers, timeout = 2).content)
-            except: 
-                self.__updateGameVersion(); headers["X-ClientVersion"] = self.version
-                status = self.parser.parse(requests.get(self.url_base + "application", 
-                                                        headers = headers, timeout = 2).content)
+            response = requests.get(PACKAGE_URL[self.server_id], timeout = 2)
+            self.version = json.loads(response.text)["results"][0]["version"]
+        except: logExceptionToFile(self.log_file_path, "Fail to check game version", traceback.format_exc()); return
+    
+    def __checkStatusOfGame(self) -> None: 
+        headers = headers = HEADER_BASE | {"X-ClientVersion": self.version, "X-Signature": self.uuid}
+        try:
+            status = self.parser.parse(requests.get(self.url_base + "application", 
+                                                    headers = headers, timeout = 2).content)
             if status[2] == "available":
                 if self.unavailability > 3:
                     self.logger.error(f"Connection to game was down for {self.unavailability} min(s)")
                 self.unavailability = 0
-            else:
-                if self.unavailability == 3: self.logger.error("Connection to game is down")
-                self.unavailability += 1
         except: 
             if self.unavailability == 3: self.logger.error("Connection to game is down")
             self.unavailability += 1
@@ -214,5 +208,8 @@ class API:
                     and datetime.now().timestamp() >= recent_monthly.start_at: 
                     self.__fetchMonthlyTop(recent_monthly)
                 
-                await asyncio.sleep(max(0, 30 - time.time() + s_time)); s_time = time.time()
+                await asyncio.sleep(max(0, 15 - time.time() + s_time)); s_time = time.time()
+                if self.parser != None: self.__checkGameVersion()
+                
+                await asyncio.sleep(max(0, 15 - time.time() + s_time)); s_time = time.time()
                 if self.parser != None: self.__checkStatusOfGame()
