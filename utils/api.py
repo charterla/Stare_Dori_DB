@@ -193,19 +193,16 @@ class API:
         flag = False; s_time = time.time()
         while True:
             self.__fetchRecentEvents(); recent_event = getRecentEvent(self.database, self.server_id)
-            if self.server_id != 1: 
-                self.__fetchRecentMonthlys(); recent_monthly = getRecentMonthly(self.database, self.server_id)
+            self.__fetchRecentMonthlys(); recent_monthly = getRecentMonthly(self.database, self.server_id)
             
             for _ in range(60):
                 await asyncio.sleep(max(0, 15 - time.time() + s_time)); s_time = time.time()
-                
                 if datetime.now().timestamp() >= recent_event.start_at:
                     if flag == False: flag = self.__fetchFullEventTop(recent_event)
                     else: flag = self.__fetchEventTop(recent_event)
                 
                 await asyncio.sleep(max(0, 15 - time.time() + s_time)); s_time = time.time()
-                if self.server_id != 1 and recent_monthly != None \
-                    and datetime.now().timestamp() >= recent_monthly.start_at: 
+                if recent_monthly != None and datetime.now().timestamp() >= recent_monthly.start_at: 
                     self.__fetchMonthlyTop(recent_monthly)
                 
                 await asyncio.sleep(max(0, 15 - time.time() + s_time)); s_time = time.time()
