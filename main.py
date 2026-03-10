@@ -70,6 +70,15 @@ if __name__ == "__main__":
         gc.collect(); bot.apis[server_id].start()
         await interaction.response.send_message(f"收集**{server.name}**資料的API已重新加載", ephemeral = True); return
     
+    # Defining command for bot owner to refresh database connection
+    @app_commands.check(lambda interaction: interaction.user.id == int(env.str("OWNER")))
+    @bot.tree.command(name = "refresh", description = "刷新機器人與數據庫間的連接")
+    async def refresh(interaction: discord.Interaction) -> None:
+        bot.database = Database(
+            host = env.str("DB_HOST"), name = env.str("DB_NAME"), user = env.str("DB_USER"),
+            password = env.str("DB_PASSWORD"), port = env.int("DB_PORT"), logger = bot.logger); gc.collect()
+        await interaction.response.send_message(f"機器人與數據庫間的連接已刷新", ephemeral = True); return
+    
     # Defining command for bot owner to inform user with bot status
     @app_commands.check(lambda interaction: interaction.user.id == int(env.str("OWNER")))
     @bot.tree.command(name = "infrom", description = "通過機器人狀態廣播通知")
@@ -82,11 +91,6 @@ if __name__ == "__main__":
             await bot.change_presence(activity = discord.Game(name = message), status = discord.Status.online)
             await interaction.response.send_message(f"通知訊息`{message}`已被廣播", ephemeral = True)
         return
-        
-    # Defining error handler
-    # @bot.tree.error
-    # async def on_command_error(interaction: discord.Interaction, error: commands.CommandError) -> None:
-    #     await interaction.response.send_message("您無法使用該指令", ephemeral = True, delete_after = 300); return
     
     # Running the Discord Bot
     bot.run(token = env.str("TOKEN"))

@@ -322,7 +322,7 @@ class Database:
     # %% getting data
     def __doSelect(self, select: str) -> tuple:
         cursor = self.connection.cursor(); cursor.execute(select)
-        result = cursor.fetchall(); cursor.close(); return result
+        result = cursor.fetchall(); self.connection.commit(); cursor.close(); return result
     
     def selectUserSetting(self, user_id: int) -> list:
         select = self.__select(["user_setting"], ["*"], f"id = {user_id}")
