@@ -15,12 +15,6 @@ PACKAGE_URL = [
     "https://itunes.apple.com/cn/lookup?bundleId=com.bilibili.star"
 ]
 
-HEADER_BASE = {
-    "User-Agent": "UnityPlayer/2021.3.45f2 (UnityWebRequest/1.0, libcurl/8.5.0-DEV)", 
-    "X-Unity-Version": "2021.3.45f2", "X-ClientPlatform": "Android", "Accept-Encoding": "deflate, gzip", 
-    "Content-Type": "application/octet-stream", "Accept": "application/octet-stream"
-}
-
 class API:
     def __init__(self, server_id: int, env_file_path: Path, log_base_path: Path):
         self.logger: Logger = getLogger(f"{__name__}.{server_id}")
@@ -40,8 +34,9 @@ class API:
             self.uid = None if uid == "-" else uid
             uuid = env.str("UUID").split(",")[self.server_id]
             self.uuid = None if uuid == "-" else uuid
-            kiv = env.str("KIV").split(",")[self.server_id].split(":")
-            self.parser = None if kiv == ["-"] else Parser(kiv[0], kiv[1])
+            kiv = env.str("KIV").split(",")[self.server_id].split(":"); rid = env.str("RID")
+            if self.server_id != 3: self.parser = None if kiv == ["-"] else Parser(kiv[0], kiv[1])
+            else: self.parser = None if kiv == ["-"] or rid == "-" else Parser(kiv[0], kiv[1], rid)
         except: self.parser = None
         self.version = None; self.__checkGameVersion()
         if self.parser != None: self.unavailability: int = 0; self.__checkStatusOfGame()
@@ -58,13 +53,12 @@ class API:
                                    traceback.format_exc(), {"response": response}); return None
         
     def __getDataFromGame(self, url: str) -> list:
-        headers = headers = HEADER_BASE | {"X-ClientVersion": self.version, "X-Signature": self.uuid}
-        try: return self.parser.parse(requests.get(url, headers = headers, timeout = 2).content)
+        try: return self.parser.parse(requests.get(url, headers = self.parser.set(self), timeout = 2))
         except: 
-            try: response = requests.get(url, headers = headers, timeout = 8)
+            try: response = requests.get(url, headers = self.parser.set(self), timeout = 8)
             except: logExceptionToFile(self.log_file_path, "Fail to get response from Game", 
                                        traceback.format_exc()); return None
-            try: return self.parser.parse(response.content)
+            try: return self.parser.parse(response)
             except: logExceptionToFile(self.log_file_path, "Fail to load response from Game", 
                                        traceback.format_exc(), {"response": response}); return None
     
@@ -176,10 +170,9 @@ class API:
         except: logExceptionToFile(self.log_file_path, "Fail to check game version", traceback.format_exc()); return
     
     def __checkStatusOfGame(self) -> None: 
-        headers = headers = HEADER_BASE | {"X-ClientVersion": self.version, "X-Signature": self.uuid}
         try:
             status = self.parser.parse(requests.get(self.url_base + "application", 
-                                                    headers = headers, timeout = 2).content)
+                                                    headers = self.parser.set(self), timeout = 2))
             if status[2] == "available":
                 if self.unavailability > 3:
                     self.logger.error(f"Connection to game was down for {self.unavailability} min(s)")
