@@ -35,8 +35,8 @@ class API:
             uuid = env.str("UUID").split(",")[self.server_id]
             self.uuid = None if uuid == "-" else uuid
             kiv = env.str("KIV").split(",")[self.server_id].split(":"); rid = env.str("RID")
-            if self.server_id != 3: self.parser = None if kiv == ["-"] else Parser(kiv[0], kiv[1])
-            else: self.parser = None if kiv == ["-"] or rid == "-" else Parser(kiv[0], kiv[1], rid)
+            if self.server_id != 3: self.parser = None if kiv == ["-"] else Parser(kiv[0], kiv[1], self.logger)
+            else: self.parser = None if kiv == ["-"] or rid == "-" else Parser(kiv[0], kiv[1], self.logger, rid)
         except: self.parser = None
         self.version = None; self.__checkGameVersion()
         if self.parser != None: self.unavailability: int = 0; self.__checkStatusOfGame()
@@ -167,6 +167,9 @@ class API:
         try:
             response = requests.get(PACKAGE_URL[self.server_id], timeout = 2)
             self.version = json.loads(response.text)["results"][0]["version"]
+            
+            response = requests.get(self.url_base + "application", headers = self.parser.set(self), timeout = 2)
+            if response.status_code == 412: self.version = self.version[:-1] + str(int(self.version[-1]) - 1)
         except: logExceptionToFile(self.log_file_path, "Fail to check game version", traceback.format_exc()); return
     
     def __checkStatusOfGame(self) -> None: 
