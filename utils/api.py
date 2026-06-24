@@ -39,7 +39,8 @@ class API:
             else: self.parser = None if kiv == ["-"] or rid == "-" else Parser(kiv[0], kiv[1], self.logger, rid)
         except: self.parser = None
         self.version = None; self.__checkGameVersion()
-        if self.parser != None: self.unavailability: int = 0; self.__checkStatusOfGame()
+        if self.parser != None: 
+            self.unavailability: int = 0; self.__checkStatusOfGame(); self.logger.info("Game connected")
         
         asyncio.run(self.__monitor())
     
